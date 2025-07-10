@@ -1,11 +1,11 @@
 import Joi from 'joi'
-import { nameValidation, objectIdValidation, roleOfUserValidation } from '../utils/pattern.js'
+import { customMessageObjectId, nameValidation, objectIdValidation } from '../utils/pattern.js'
 import { ApiError } from '../utils/ApiError.js'
 import { StatusCodes } from 'http-status-codes'
 
 const getUserById = async (req, res, next) => {
   const reqParamsSchema = Joi.object({
-    id: objectIdValidation
+    id: objectIdValidation.required().messages(customMessageObjectId.id)
   })
 
   try {
@@ -20,7 +20,7 @@ const getUserById = async (req, res, next) => {
 const updateById = async (req, res, next) => {
   const reqBodySchema = Joi.object({
     name: nameValidation,
-    roles: roleOfUserValidation
+    roles: objectIdValidation.messages(customMessageObjectId.role)
   })
     .min(1)
     .unknown(false)

@@ -10,8 +10,8 @@ import { roleRepository } from '../repositories/roleRepository.js'
 
 const register = async (reqBody) => {
   try {
-    const existUser = await userRepository.findByEmail(reqBody.email)
-    if (existUser) throw new ApiError('Email đã tồn tại!', StatusCodes.BAD_REQUEST)
+    const existedUser = await userRepository.findByEmail(reqBody.email)
+    if (existedUser) throw new ApiError('Email đã tồn tại!', StatusCodes.BAD_REQUEST)
 
     // Mặc định register role là STAFF
     const defaultRole = await roleRepository.findByName(ROLES.STAFF)

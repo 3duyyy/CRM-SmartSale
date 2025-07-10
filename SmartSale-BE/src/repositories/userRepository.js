@@ -25,9 +25,9 @@ const findAll = async (selectField) => {
     .select(selectField)
 }
 
-const updateById = async (id, data, selectField) => {
+const updateById = async (id, updateData, selectField) => {
   return await userModel
-    .findByIdAndUpdate(id, data, { new: true })
+    .findByIdAndUpdate(id, updateData, { new: true })
     .populate({ path: 'roles', populate: { path: 'permissions' } })
     .select(selectField)
 }

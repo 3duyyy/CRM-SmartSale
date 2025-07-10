@@ -7,7 +7,7 @@ import { ApiError } from '../utils/ApiError.js'
 const register = async (req, res, next) => {
   try {
     const newUser = await authService.register(req.body)
-    res.status(StatusCodes.OK).json({ message: 'Đăng ký thành công!', userData: newUser })
+    res.status(StatusCodes.CREATED).json({ message: 'Đăng ký thành công!', userData: newUser })
   } catch (error) {
     next(error)
   }
@@ -57,7 +57,8 @@ const getMe = async (req, res, next) => {
   try {
     const myId = req.tokenDecoded.id
     const result = await authService.getMe(myId)
-    return res.status(StatusCodes.OK).json(result)
+
+    res.status(StatusCodes.OK).json(result)
   } catch (error) {
     next(error)
   }
