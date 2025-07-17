@@ -6,6 +6,7 @@ import { leadRoute } from './leadRoute.js'
 
 const Router = express.Router()
 Router.get('/status', (req, res) => {
+  console.log('adasdasdad')
   res.status(StatusCodes.OK).json({ message: 'api ready to use', code: StatusCodes.OK })
 })
 Router.use('/auth', authRoute)

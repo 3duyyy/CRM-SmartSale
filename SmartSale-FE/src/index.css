@@ -1,1 +1,5 @@
-@import "tailwindcss";
+@import 'tailwindcss';
+
+.css-1ob3z7a {
+  padding: 0 !important;
+}

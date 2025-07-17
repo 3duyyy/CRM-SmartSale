@@ -10,6 +10,7 @@ const leadSchema = new mongoose.Schema(
     value: { type: Number, required: true },
     note: { type: String, default: '' },
     assignedTo: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'User' },
+    order: { type: Number, required: true, default: 0 },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
   },
   {

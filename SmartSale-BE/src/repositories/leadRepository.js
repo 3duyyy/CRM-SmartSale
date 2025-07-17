@@ -32,6 +32,10 @@ const unassignLeadsByUserId = async (userId) => {
   return await leadModel.updateMany({ assignedTo: userId }, { $set: { assignedTo: null } })
 }
 
+const findMaxOrderLead = async (status) => {
+  return await leadModel.findOne({ status: status }).sort('-order').exec()
+}
+
 export const leadRepository = {
   create,
   findByEmail,
@@ -39,5 +43,6 @@ export const leadRepository = {
   findById,
   updateById,
   deleteById,
-  unassignLeadsByUserId
+  unassignLeadsByUserId,
+  findMaxOrderLead
 }

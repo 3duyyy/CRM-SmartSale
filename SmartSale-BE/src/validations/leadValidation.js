@@ -48,14 +48,16 @@ const updateLead = async (req, res, next) => {
       'any.only': 'Trạng thái không hợp lệ!'
     }),
     value: Joi.number().min(0).messages({
-      'number.min': 'Giá trị không được âm!',
-      'any.required': 'Thiếu giá trị mang lại của người dùng ($)!'
+      'number.min': 'Giá trị không được âm!'
     }),
     note: Joi.string().max(1000).allow('', null).messages({
       'string.base': 'Ghi chú phải là chuỗi!',
       'string.max': 'Ghi chú quá dài!'
     }),
-    assignedTo: objectIdValidation.messages(customMessageObjectId.assignedTo)
+    assignedTo: objectIdValidation.messages(customMessageObjectId.assignedTo),
+    order: Joi.number().min(0).messages({
+      'number.min': 'Giá trị không được âm!'
+    })
   })
     .min(1)
     .unknown(false)

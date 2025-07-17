@@ -8,9 +8,15 @@ const createNew = async (reqBody, id) => {
     const existedLead = await leadRepository.findByEmail(reqBody.email)
     if (existedLead) throw new ApiError('Email của khách hàng đã tồn tại!', StatusCodes.BAD_REQUEST)
 
+    const status = reqBody.status || 'moi'
+    const maxOrderLead = await leadRepository.findMaxOrderLead(status)
+    const order = maxOrderLead ? maxOrderLead.order + 1 : 0
+
     const userData = {
       ...reqBody,
-      createdBy: id
+      status,
+      createdBy: id,
+      order
     }
 
     return await leadRepository.create(userData)

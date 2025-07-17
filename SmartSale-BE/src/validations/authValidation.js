@@ -22,7 +22,6 @@ const register = async (req, res, next) => {
 const login = async (req, res, next) => {
   const correctCondition = Joi.object({
     email: emailValidation.required(),
-
     password: passwordValidation
   }).unknown(false)
 
