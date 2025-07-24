@@ -1,7 +1,7 @@
 import { leadModel } from '../models/leadModel.js'
 
 const create = async (data) => {
-  return await leadModel.create(data)
+  return (await leadModel.create(data)).populate('assignedTo')
 }
 
 // Check exist lead
@@ -9,8 +9,22 @@ const findByEmail = async (email) => {
   return await leadModel.findOne({ email })
 }
 
-const findAll = async (selectField) => {
-  return await leadModel.find().populate('assignedTo', 'name email').select(selectField)
+const findAll = async (filter, selectField) => {
+  const query = {}
+
+  if (filter.status) {
+    query.status = filter.status
+  }
+
+  if (filter.assignedTo) {
+    query.assignedTo = filter.assignedTo
+  }
+
+  if (filter.search) {
+    query.name = { $regex: filter.search, $options: 'i' }
+  }
+
+  return await leadModel.find(query).populate('assignedTo', 'name email').select(selectField)
 }
 
 const findById = async (id, selectField) => {

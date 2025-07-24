@@ -13,7 +13,6 @@ export const checkPermission = (requiredPermission) => {
 
       next()
     } catch (error) {
-      console.log('error', error)
       next(new ApiError('Lỗi kiểm tra quyền', StatusCodes.INTERNAL_SERVER_ERROR))
     }
   }

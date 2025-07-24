@@ -1,50 +1,58 @@
 import { axiosInstance } from '@/api/axiosInstance'
+import { Lead } from '@/types/globalTypes'
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit'
-
-export interface Lead {
-  _id: string
-  name: string
-  company: string | null
-  email: string
-  phone: string
-  status: string
-  value: number
-  note: string
-  assignedTo: {
-    _id: string
-    name: string
-    email: string
-  }
-  createdBy: string
-  order: number
-}
+import { toast } from 'react-toastify'
 
 interface InitialState {
   all: Lead[]
-  filtered: Lead[]
+  reload: boolean
   search: string
   statusFilter: string
   assigneeFilter: string
 }
 
-export const getAllLeads = createAsyncThunk<Lead[]>('/leads', async () => {
-  const res = await axiosInstance.get('/leads')
-  return res.data?.data
-})
-
-// update lead (status để kéo thả giữa các column)
-export const updateLeadById = createAsyncThunk<Lead, { _id: string; payload: Partial<Lead> }>(
-  `/lead/update`,
-  async ({ _id, payload }) => {
-    const res = await axiosInstance.put(`/leads/${_id}`, payload)
-    console.log(res)
+export const getAllLeads = createAsyncThunk<Lead[], { search?: string; status?: string; assignedTo?: string }>(
+  '/leads',
+  async (params = {}) => {
+    const res = await axiosInstance.get('/leads', { params })
     return res.data?.data
   }
 )
 
+// update lead (status để kéo thả giữa các column)
+export const updateLeadById = createAsyncThunk<
+  Lead,
+  { _id: string; payload: Omit<Partial<Lead>, 'assignedTo'> & { assignedTo?: string } }
+>(`/lead/update`, async ({ _id, payload }) => {
+  const res = await axiosInstance.put(`/leads/${_id}`, payload)
+  return res.data?.data
+})
+
+// Omit là type dùng để tạo ra một kiểu mới từ một kiểu đã có, nhưng loại bỏ đi một hoặc nhiều thuộc tính chỉ định
+export const createNewLead = createAsyncThunk<
+  Lead,
+  Omit<Lead, '_id' | 'order' | 'assignedTo' | 'createdBy'> & { assignedTo: string }
+>('/leads/create', async (payload) => {
+  const res = await axiosInstance.post('/leads', payload)
+  return res.data
+})
+
+export const deleteLeadById = createAsyncThunk<string, string>('/leads/delete', async (id) => {
+  const res = await axiosInstance.delete(`/leads/${id}`)
+  return res.data
+})
+
+export const sendMailToLead = createAsyncThunk<
+  { success: boolean; message: string },
+  Pick<Lead, 'email' | 'name' | 'company' | 'value' | 'status'>
+>('/leads/sendMail', async (payload) => {
+  const res = await axiosInstance.post('/leads/send-email', payload)
+  return res.data
+})
+
 const initialState: InitialState = {
   all: [],
-  filtered: [],
+  reload: false,
   search: '',
   statusFilter: '',
   assigneeFilter: ''
@@ -66,13 +74,28 @@ const leadSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      // Get All
       .addCase(getAllLeads.fulfilled, (state, action) => {
         state.all = action.payload
+        state.reload = false
       })
+      // Update
       .addCase(updateLeadById.fulfilled, (state, action) => {
-        const updated = action.payload
-        const index = state.all.findIndex((lead) => lead._id === updated._id)
-        if (index !== -1) state.all[index] = updated
+        const updatedData = action.payload
+        const indexUpdate = state.all.findIndex((lead) => lead._id === updatedData._id)
+        if (indexUpdate !== -1) state.all[indexUpdate] = updatedData
+      })
+      // Create
+      .addCase(createNewLead.fulfilled, (state, action) => {
+        state.all.push(action.payload)
+      })
+      // Delete
+      .addCase(deleteLeadById.fulfilled, (state) => {
+        state.reload = true
+      })
+      // Send Email
+      .addCase(sendMailToLead.fulfilled, (state, action) => {
+        toast.success(action.payload.message)
       })
   }
 })
@@ -80,11 +103,10 @@ const leadSlice = createSlice({
 export const filterLeads = (leads: Lead[], search: string, status: string, assignee: string) => {
   return leads.filter(
     (lead) =>
-      (search === '' ||
-        lead.name.toLowerCase().includes(search.toLowerCase()) ||
-        lead.company.toLowerCase().includes(search.toLowerCase())) &&
-      (status === '' || lead.status === status) &&
-      (assignee === '' || lead.assignedTo.name === assignee)
+      search === '' ||
+      (lead.name.toLowerCase().includes(search.toLowerCase()) &&
+        (status === '' || lead.status === status) &&
+        (assignee === '' || lead.assignedTo.name === assignee))
   )
 }
 

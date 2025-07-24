@@ -1,6 +1,6 @@
 import Joi from 'joi'
 
-export const customMessageObjectId = {
+export const customMessage = {
   id: {
     'string.pattern.base': 'ID phải có dạng ObjectId của MongoDB!',
     'string.empty': 'ID không được để trống!',
@@ -28,7 +28,6 @@ export const emailValidation = Joi.string().email().trim().strict().messages({
 
 export const passwordValidation = Joi.string()
   .pattern(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/)
-  .required()
   .trim()
   .strict()
   .messages({

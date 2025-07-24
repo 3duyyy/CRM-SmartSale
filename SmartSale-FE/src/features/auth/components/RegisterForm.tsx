@@ -33,12 +33,7 @@ const RegisterForm = () => {
       ).unwrap(),
       {
         pending: 'Đang đăng ký...',
-        success: 'Đăng ký thành công!',
-        error: {
-          render({ data }) {
-            return data || 'Đăng ký thất bại!'
-          }
-        }
+        success: 'Đăng ký thành công!'
       }
     )
     navigate('/auth/login')

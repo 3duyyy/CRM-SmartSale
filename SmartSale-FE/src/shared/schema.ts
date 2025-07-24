@@ -16,7 +16,6 @@ export const roleIdSchema = z
   .regex(REGEX.objectId, { error: 'Role phải có dạng ObjectId của MongoDB!' })
   .trim()
 
-// 🧑‍💼 AssignedTo ID
 export const assignedToSchema = z
   .string()
   .regex(REGEX.objectId, { error: 'Người được giao Lead phải có dạng ObjectId của MongoDB!' })

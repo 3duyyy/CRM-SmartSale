@@ -6,6 +6,6 @@ export class ApiError extends Error {
     this.statusCode = statusCode
     this.errors = errors
     Error.captureStackTrace(this, this.constructor)
-    console.error('Error: ', message)
+    console.error('Error from ApiError: ', message)
   }
 }

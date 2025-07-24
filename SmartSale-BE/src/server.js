@@ -9,13 +9,14 @@ import { errorHandler } from './middlewares/errorHandler.js'
 import './models/index.js'
 import cookieParser from 'cookie-parser'
 import { connectRedis } from './config/redis.js'
+import { corsOption } from './config/cors.js'
 
 const app = express()
 
 // Middlewares
 app.use(morgan('dev'))
 app.use(express.json())
-app.use(cors({ origin: 'http://localhost:5173', credentials: true }))
+app.use(cors(corsOption))
 app.use(cookieParser())
 // Route
 app.use('/api', api)

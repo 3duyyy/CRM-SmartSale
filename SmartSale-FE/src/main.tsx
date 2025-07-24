@@ -7,8 +7,11 @@ import { router } from '@/router/router'
 import { ToastContainer } from 'react-toastify'
 import { PersistGate } from 'redux-persist/integration/react'
 import { persistStore } from 'redux-persist'
+import { injectStore } from './api/axiosInstance'
 
 const persistor = persistStore(store)
+// Sử dụng dữ liệu từ redux store trong file axios
+injectStore(store)
 
 createRoot(document.getElementById('root')!).render(
   <Provider store={store}>

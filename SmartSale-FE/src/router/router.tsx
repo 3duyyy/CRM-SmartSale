@@ -6,6 +6,8 @@ import MainLayout from '@/layouts/MainLayout'
 import PublicRoute from './PublicRoute'
 import Dashboard from '@/features/dashboard/page/Dashboard'
 import OpportunitiesPage from '@/features/opportunities/pages/OpportunitiesPage'
+import AdminRoute from './AdminRoute'
+import UserManagement from '@/features/users/pages/UserManagement'
 
 export const router = createBrowserRouter([
   {
@@ -13,7 +15,6 @@ export const router = createBrowserRouter([
     element: <ProtectedRoute />,
     children: [
       {
-        path: '',
         element: <MainLayout />,
         children: [
           {
@@ -27,6 +28,15 @@ export const router = createBrowserRouter([
           {
             path: 'opportunities',
             element: <OpportunitiesPage />
+          },
+          {
+            element: <AdminRoute />,
+            children: [
+              {
+                path: 'users',
+                element: <UserManagement />
+              }
+            ]
           }
         ]
       }

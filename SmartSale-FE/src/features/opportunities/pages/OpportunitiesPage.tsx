@@ -1,11 +1,19 @@
 import { Add, Search, SupportAgent } from '@mui/icons-material'
-import { Box, Button, MenuItem, Stack, TextField, Typography, useTheme } from '@mui/material'
+import { Box, MenuItem, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material'
 import OpportunitiesColumn from '../components/OpportunitiesColumn'
 import { COLUMNS } from '../constant'
 import { useDispatch, useSelector } from 'react-redux'
 import { Dispatch, RootState } from '@/redux/store'
-import { useEffect, useState } from 'react'
-import { filterLeads, getAllLeads, Lead, setSearch, updateLeadById } from '../leadSlice'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  createNewLead,
+  filterLeads,
+  getAllLeads,
+  setAssigneeFilter,
+  setSearch,
+  setStatusFilter,
+  updateLeadById
+} from '../leadSlice'
 import {
   closestCorners,
   DndContext,
@@ -21,6 +29,15 @@ import {
 import { arrayMove } from '@dnd-kit/sortable'
 import { toast } from 'react-toastify'
 import OpportunitiesCard from '../components/OpportunitiesCard'
+import ButtonCus from '@/components/ButtonCus'
+import { Lead } from '@/types/globalTypes'
+import FormLeadBase from '../components/FormLeadBase'
+import { leadSchema } from '../schema'
+import z from 'zod'
+import { getAllUsers } from '@/features/users/userSlice'
+import debounce from 'lodash.debounce'
+
+type LeadFormType = z.infer<typeof leadSchema>
 
 const OpportunitiesPage = () => {
   // Xử lý dragoverlay
@@ -29,24 +46,17 @@ const OpportunitiesPage = () => {
   const [localLeads, setLocalLeads] = useState<Lead[]>([])
   // Fix lỗi handleDragOver gán status làm handleDragEnd bị hiểu là kéo thả trong 1 column
   const [draggedLeadStatus, setDraggedLeadStatus] = useState<string | null>(null)
+  // Open form add lead
+  const [isCreate, setIsCreate] = useState(false)
+
+  const { users } = useSelector((state: RootState) => state.users)
+  const user = useSelector((state: RootState) => state.auth.userData)
+  const isAdmin = user?.roles?.name === 'ADMIN'
 
   const theme = useTheme()
 
-  const mouseSensor = useSensor(MouseSensor, {
-    activationConstraint: {
-      distance: 10
-    }
-  })
-  const touchSensor = useSensor(TouchSensor, {
-    activationConstraint: {
-      delay: 250,
-      tolerance: 5
-    }
-  })
-  const sensors = useSensors(mouseSensor, touchSensor)
-
   const dispatch = useDispatch<Dispatch>()
-  const { all, search, statusFilter, assigneeFilter } = useSelector((state: RootState) => state.leads)
+  const { all, search, statusFilter, assigneeFilter, reload } = useSelector((state: RootState) => state.leads)
 
   useEffect(() => {
     setLocalLeads(all)
@@ -56,11 +66,65 @@ const OpportunitiesPage = () => {
   const filteredLocalLeads: Lead[] = filterLeads(localLeads, search, statusFilter, assigneeFilter)
 
   useEffect(() => {
-    dispatch(getAllLeads())
+    const selectedUser = users.find((user) => user.name === assigneeFilter)
+    const assignedTo = selectedUser ? selectedUser._id : ''
+
+    dispatch(getAllLeads({ search, status: statusFilter, assignedTo }))
+  }, [dispatch, reload, search, statusFilter, assigneeFilter, users])
+
+  useEffect(() => {
+    dispatch(getAllUsers())
   }, [dispatch])
 
+  // Debounce tránh call API quá nhiều khi search
+  const debouncedSetSearch = useMemo(
+    () =>
+      debounce((value: string) => {
+        dispatch(setSearch(value))
+      }, 500),
+    [dispatch]
+  )
+
+  useEffect(() => {
+    return () => {
+      debouncedSetSearch.cancel()
+    }
+  }, [debouncedSetSearch])
+
+  // ==============FORM CREATE=================
+  const handleCreateLead = async (data: LeadFormType) => {
+    try {
+      await dispatch(
+        createNewLead({
+          ...data,
+          status: data.status || 'moi',
+          company: data.company || null,
+          note: data.note || '',
+          assignedTo: data.assignedTo
+        })
+      ).unwrap()
+      toast.success('Tạo lead thành công!')
+    } catch (err: any) {
+      toast.error(err?.message || 'Tạo lead thất bại!')
+    }
+  }
+
+  // ==================Drag & Drop====================
+  const mouseSensor = useSensor(MouseSensor, {
+    activationConstraint: {
+      distance: 15
+    }
+  })
+  const touchSensor = useSensor(TouchSensor, {
+    activationConstraint: {
+      delay: 300,
+      tolerance: 8
+    }
+  })
+  const sensors = useSensors(mouseSensor, touchSensor)
+
   const handleDragStart = (e: DragStartEvent) => {
-    const foundLead = all.find((lead) => lead._id === e.active.id)
+    const foundLead = localLeads.find((lead) => lead._id === e.active.id)
     if (foundLead) {
       setActiveLead(foundLead)
       setDraggedLeadStatus(foundLead.status)
@@ -97,20 +161,18 @@ const OpportunitiesPage = () => {
     // Nếu khác column thì mới xử lý
     if (activeLeadStatus !== overLeadStatus) {
       // Lấy danh sách các lead trong column đích
-      const targetColumnLeads = localLeads
-        .filter((lead) => lead.status === overLeadStatus && lead._id !== activeLead._id)
-        .sort((a, b) => a.order - b.order)
+      const targetColumnLeads = localLeads.filter(
+        (lead) => lead.status === overLeadStatus && lead._id !== activeLead._id
+      )
 
       const overIndex = targetColumnLeads.findIndex((lead) => lead._id === overLead._id)
 
-      // Chèn card đang kéo vào đúng vị trí (status vẫn là cũ)
+      // Cập nhật order cho column đích
       const newTargetLeads = [
         ...targetColumnLeads.slice(0, overIndex),
-        { ...activeLead },
+        { ...activeLead, status: overLeadStatus },
         ...targetColumnLeads.slice(overIndex)
-      ]
-      // Cập nhật order cho column đích
-      const updatedTargetLeads = newTargetLeads.map((lead, idx) => ({
+      ].map((lead, idx) => ({
         ...lead,
         order: idx
       }))
@@ -118,7 +180,6 @@ const OpportunitiesPage = () => {
       // Loại bỏ card đã kéo thả ra khỏi column cũ và cập nhật order cho column cũ
       const oldColumnLeads = localLeads
         .filter((lead) => lead.status === activeLeadStatus && lead._id !== activeLead._id)
-        .sort((a, b) => a.order - b.order)
         .map((lead, index) => ({ ...lead, order: index }))
 
       // Các Column khác giữ nguyên
@@ -126,21 +187,14 @@ const OpportunitiesPage = () => {
         (lead) => lead.status !== activeLeadStatus && lead.status !== overLeadStatus
       )
 
-      setLocalLeads([...updatedTargetLeads, ...oldColumnLeads, ...otherColumns])
+      setLocalLeads([...newTargetLeads, ...oldColumnLeads, ...otherColumns])
     }
   }
 
   const handleDragEnd = (e: DragEndEvent) => {
     const { active, over } = e
-    if (!over || active.id === over.id) {
+    if (!over) {
       setDraggedLeadStatus(null)
-      dispatch(
-        updateLeadById({
-          _id: active.id as string,
-          payload: { order: active.data.current.sortable.index, status: active.data.current.status }
-        })
-      )
-      toast.success('Kéo thả Lead thành công!')
       return
     }
 
@@ -173,9 +227,8 @@ const OpportunitiesPage = () => {
     // Kéo thả trong 1 column
     if (activeLeadStatus === overLeadStatus) {
       // Lọc những phần tử cùng status và không phải phần tử đang drag
-      const sameStatusLeads = localLeads
-        .filter((lead) => lead.status === activeLeadStatus)
-        .sort((a, b) => a.order - b.order)
+      const sameStatusLeads = localLeads.filter((lead) => lead.status === activeLeadStatus)
+      // .sort((a, b) => a.order - b.order)
 
       const activeIndex = sameStatusLeads.findIndex((lead) => lead._id === activeLead._id)
       const overIndex = sameStatusLeads.findIndex((lead) => lead._id === overLead._id)
@@ -200,17 +253,16 @@ const OpportunitiesPage = () => {
           )
         }
       })
-      toast.success('Kéo thả Lead thành công!')
     }
-    // Kéo thả card giữa các column
+    // Kéo thả card giữa các column (đang bug - fix sau: fix call nhiều API)
     else {
-      console.log('first')
       // Lọc những phần tử cùng status với phần tử bị drag vào
-      const targetColumnLeads = localLeads
-        .filter((lead) => lead.status === overLeadStatus && lead._id !== activeLead._id)
-        .sort((a, b) => a.order - b.order)
+      const targetColumnLeads = localLeads.filter(
+        (lead) => lead.status === overLeadStatus && lead._id !== activeLead._id
+      )
+      // .sort((a, b) => a.order - b.order)
 
-      const overIndex = targetColumnLeads.findIndex((lead) => lead._id === overLead._id)
+      const overIndex = localLeads.findIndex((lead) => lead._id === overLead._id)
 
       // Chèn active card vào đúng index của column
       const newTargetLeads = [
@@ -231,17 +283,21 @@ const OpportunitiesPage = () => {
           // Cập nhật status và order cho lead vừa được kéo
           if (updatedLead) return { ...lead, status: updatedLead.status, order: updatedLead.order }
           // Xử lý giảm order đi 1 cho các lead có order lớn hơn lead vừa được kéo thả đi
-          if (lead.status === activeLeadStatus && lead._id !== activeLead._id) {
-            return {
-              ...lead,
-              order: lead.order > activeLead.order ? lead.order - 1 : lead.order
-            }
-          }
+          // if (lead.status === activeLeadStatus && lead._id !== activeLead._id) {
+          //   return {
+          //     ...lead,
+          //     order: lead.order > activeLead.order ? lead.order - 1 : lead.order
+          //   }
+          // }
           return lead
         })
       )
 
-      // Update tất cả các lead trong column target (cần update status vì bao gồm cả lead drag)
+      // Update tất cả các lead trong column target (cần update status vì bao gồm cả lead drag):
+      //       case:
+      // - lấy được 2 cột thay đổi
+      // - đánh index (order) cho cột.
+      // - đầu api order và stastus cho thằng được kéo
       updatedOrderList.forEach((lead) => {
         dispatch(updateLeadById({ _id: lead._id, payload: { order: lead.order, status: lead.status } }))
       })
@@ -254,73 +310,185 @@ const OpportunitiesPage = () => {
             dispatch(updateLeadById({ _id: lead._id, payload: { order: lead.order - 1 } }))
           }
         })
-
-      toast.success('Kéo thả Lead thành công!')
     }
     setActiveLead(null)
   }
 
   return (
-    <Box sx={{ p: 1, bgcolor: '#F4F6F8', minHeight: '100vh', maxHeight: '100vh' }}>
-      {/* Header */}
+    <Box sx={{ p: { xs: 0.5, md: 3 }, bgcolor: '#F4F6F8', minHeight: '100vh', maxHeight: '100vh' }}>
+      {/* Header (chưa tách) */}
       <Box
         sx={{
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: { xs: 'column', md: 'row' },
+          alignItems: { xs: 'flex-start', md: 'center' },
           justifyContent: 'space-between',
           bgcolor: 'white',
-          px: 3,
-          pt: 1.5,
-          pb: 4,
-          boxShadow: 4,
-          borderRadius: 5
+          px: { xs: 2, md: 5 },
+          pt: { xs: 2, md: 3 },
+          pb: { xs: 3, md: 4 },
+          boxShadow: 6,
+          borderRadius: 5,
+          mb: 3,
+          gap: { xs: 2, md: 0 }
         }}
       >
-        <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 2 }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography
             variant="h1"
-            fontWeight={700}
-            sx={{ display: 'flex', alignItems: 'center', gap: 2, fontSize: '40px' }}
+            fontWeight={800}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2,
+              fontSize: { xs: '25px', md: '35px' },
+              color: theme.palette.primary.main
+            }}
           >
-            <SupportAgent sx={{ fontSize: 40 }} /> Opportunities
+            <SupportAgent sx={{ fontSize: { xs: 28, md: 35 } }} /> Opportunities
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1 }}>
-            <Search sx={{ fontSize: '30px', color: theme.palette.primary.main }} />
+          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, mt: 1 }}>
+            <Search sx={{ fontSize: '28px', color: theme.palette.primary.main }} />
             <TextField
               id="find-lead-input"
               label="Tìm kiếm cơ hội kinh doanh"
               placeholder="Nhập vào tên khách hàng/công ty cần tìm..."
               variant="standard"
-              sx={{ width: '350px' }}
+              sx={{ width: { xs: '200px', sm: '300px', md: '350px' } }}
               value={search}
               onChange={(e) => dispatch(setSearch(e.target.value))}
             />
           </Box>
         </Box>
-        <Button sx={{ display: 'flex', alignItems: 'center', fontSize: '16px', px: 3, py: 1.2 }} variant="contained">
-          <Add />
-          Thêm mới
-        </Button>
+        <Box>
+          <Tooltip title={!isAdmin ? 'Bạn không có quyền thực hiện chức năng này!' : ''} disableHoverListener={isAdmin}>
+            {/* Phải có thẻ span vì Button khi role là STAFF bị disabled rồi nên ko thể chạy các event */}
+            <span>
+              <ButtonCus
+                sxAdditional={{ px: 4, py: 1.5, fontSize: '16px' }}
+                icon={<Add sx={{ mr: 1 }} />}
+                content={'Thêm mới'}
+                variant="contained"
+                disabled={!isAdmin}
+                onClick={() => setIsCreate(true)}
+              />
+            </span>
+          </Tooltip>
+          <FormLeadBase
+            mode="create"
+            open={isCreate}
+            onClose={() => setIsCreate(false)}
+            onSubmit={handleCreateLead}
+            users={users}
+            columns={COLUMNS}
+            defaultValues={{ status: 'moi' }}
+          />
+        </Box>
       </Box>
-      {/* Filter */}
-      <Stack direction="row" spacing={2} mt={2} mb={4} px={3}>
+      {/* Filter (Chưa tách) */}
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        spacing={2}
+        mt={1}
+        mb={4}
+        px={{ xs: 0, md: 3 }}
+        alignItems="center"
+        justifyContent="flex-start"
+        sx={{
+          width: '100%',
+          bgcolor: 'transparent',
+          flexWrap: 'wrap',
+          gap: { xs: 1, sm: 2 }
+        }}
+      >
         <TextField
           size="small"
           select
           label="Tất cả trạng thái"
-          sx={{ minWidth: 180, bgcolor: '#fff', boxShadow: 4, borderRadius: 2 }}
+          sx={{
+            minWidth: 180,
+            bgcolor: '#f9fafb',
+            boxShadow: 2,
+            borderRadius: 3,
+            border: '1.5px solid #e0e7ef',
+            '& .MuiInputBase-root': {
+              borderRadius: 3,
+              px: 1.5,
+              py: 0.5,
+              bgcolor: '#f9fafb'
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              border: 'none'
+            },
+            '&:hover': {
+              boxShadow: 4,
+              bgcolor: '#f1f3f6'
+            },
+            '& .MuiInputLabel-root': {
+              fontWeight: 600,
+              color: '#636e72'
+            },
+            '& .MuiSelect-icon': {
+              color: '#6c63ff'
+            }
+          }}
+          InputProps={{
+            startAdornment: <SupportAgent sx={{ color: '#6c63ff', mr: 1 }} fontSize="small" />
+          }}
+          value={statusFilter}
+          onChange={(e) => dispatch(setStatusFilter(e.target.value))}
         >
-          <MenuItem value="">Lead mới</MenuItem>
+          <MenuItem value="">Tất cả trạng thái</MenuItem>
+          {COLUMNS.map((col) => (
+            <MenuItem key={col.status} value={col.status}>
+              {col.label}
+            </MenuItem>
+          ))}
         </TextField>
         <TextField
           size="small"
           select
           label="Tất cả người phụ trách"
-          sx={{ minWidth: 220, bgcolor: '#fff', boxShadow: 4, borderRadius: 2 }}
+          sx={{
+            minWidth: 220,
+            bgcolor: '#f9fafb',
+            boxShadow: 2,
+            borderRadius: 3,
+            border: '1.5px solid #e0e7ef',
+            '& .MuiInputBase-root': {
+              borderRadius: 3,
+              px: 1.5,
+              py: 0.5,
+              bgcolor: '#f9fafb'
+            },
+            '& .MuiOutlinedInput-notchedOutline': {
+              border: 'none'
+            },
+            '&:hover': {
+              boxShadow: 4,
+              bgcolor: '#f1f3f6'
+            },
+            '& .MuiInputLabel-root': {
+              fontWeight: 600,
+              color: '#636e72'
+            },
+            '& .MuiSelect-icon': {
+              color: '#00b894'
+            }
+          }}
+          InputProps={{
+            startAdornment: <SupportAgent sx={{ color: '#00b894', mr: 1 }} fontSize="small" />
+          }}
+          value={assigneeFilter}
+          onChange={(e) => dispatch(setAssigneeFilter(e.target.value))}
         >
           <MenuItem value="">Tất cả người phụ trách</MenuItem>
+          {users.map((user) => (
+            <MenuItem key={user._id} value={user.name}>
+              {user.name}
+            </MenuItem>
+          ))}
         </TextField>
-        <TextField size="small" type="date" sx={{ minWidth: 160, bgcolor: '#fff', boxShadow: 4, borderRadius: 2 }} />
       </Stack>
       {/* Columns */}
       <DndContext
@@ -336,13 +504,11 @@ const OpportunitiesPage = () => {
             display: 'flex',
             minHeight: 0,
             alignItems: 'flex-start',
-            gap: 3,
-            px: 3,
+            gap: { xs: 1, sm: 2, md: 3 },
+            px: { xs: 0, md: 3 },
             overflowY: 'hidden',
             overflowX: 'auto',
-            scrollbarWidth: 'thin',
-            '&::-webkit-scrollbar': { height: 8 },
-            '&::-webkit-scrollbar-thumb': { bgcolor: '#d1d5db', borderRadius: 4 }
+            height: { xs: 'auto', md: 'calc(100vh - 240px)' } // Đảm bảo các column full height vùng hiển thị
           }}
         >
           {COLUMNS.map((data) => (
@@ -356,7 +522,15 @@ const OpportunitiesPage = () => {
                 .sort((a, b) => a.order - b.order)}
             />
           ))}
-          <DragOverlay>{activeLead ? <OpportunitiesCard lead={activeLead} /> : null}</DragOverlay>
+          <DragOverlay
+            sx={{
+              transform: 'translate3d(0, 0, 0)', // Sử dụng GPU acceleration
+              willChange: 'transform',
+              pointerEvents: 'none'
+            }}
+          >
+            {activeLead ? <OpportunitiesCard lead={activeLead} /> : null}
+          </DragOverlay>
         </Box>
       </DndContext>
     </Box>

@@ -11,7 +11,7 @@ const generateToken = async (payload, secretSignature, tokenlife) => {
   try {
     return jwt.sign(payload, secretSignature, { expiresIn: tokenlife })
   } catch (error) {
-    throw new Error(error)
+    throw error
   }
 }
 
@@ -26,7 +26,7 @@ const verifyToken = async (tokenVerify, secretSignature) => {
   try {
     return jwt.verify(tokenVerify, secretSignature)
   } catch (error) {
-    throw new Error(error)
+    throw error
   }
 }
 

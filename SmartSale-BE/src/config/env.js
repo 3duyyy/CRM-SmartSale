@@ -11,5 +11,8 @@ export const env = {
   REFRESH_TOKEN_LIFE: process.env.REFRESH_TOKEN_LIFE,
 
   REDIS_HOST: process.env.REDIS_HOST,
-  REDIS_PORT: process.env.REDIS_PORT
+  REDIS_PORT: process.env.REDIS_PORT,
+
+  EMAIL_USER: process.env.EMAIL_USER,
+  EMAIL_APP_PASS: process.env.EMAIL_APP_PASS
 }

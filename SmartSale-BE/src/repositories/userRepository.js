@@ -18,7 +18,7 @@ const findById = async (id, selectField) => {
     .select(selectField)
 }
 
-const findAll = async (selectField) => {
+const findAll = async (filter, selectField) => {
   return await userModel
     .find()
     .populate({ path: 'roles', populate: { path: 'permissions' } })

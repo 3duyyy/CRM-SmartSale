@@ -14,5 +14,6 @@ Router.route('/:id')
   .get(checkPermission(PERMISSIONS.VIEW_LEAD_DETAIL), leadController.getLeadById)
   .put(checkPermission(PERMISSIONS.EDIT_LEAD), leadValidation.updateLead, leadController.updateById)
   .delete(checkPermission(PERMISSIONS.DELETE_LEAD), leadController.deleteById)
+Router.route('/send-email').post(checkPermission(PERMISSIONS.SEND_MAIL), leadValidation.sendMailToLead, leadController.sendMailToLead)
 
 export const leadRoute = Router

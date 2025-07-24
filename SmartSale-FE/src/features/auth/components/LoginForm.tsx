@@ -33,12 +33,7 @@ const LoginForm = () => {
         ).unwrap(),
         {
           pending: 'Đang đăng nhập...',
-          success: 'Đăng nhập thành công, chào mừng bạn trở lại!',
-          error: {
-            render({ data }) {
-              return data || 'Đăng nhập thất bại!'
-            }
-          }
+          success: 'Đăng nhập thành công, chào mừng bạn trở lại!'
         }
       )
       navigate('/')

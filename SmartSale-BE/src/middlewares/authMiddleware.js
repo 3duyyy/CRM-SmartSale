@@ -6,16 +6,10 @@ import { env } from '../config/env.js'
 // Kiểm tra Token
 const Authenticate = async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization
-
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      throw new ApiError('Unauthorized - Token không tồn tại!')
-    }
-
-    const clientAccessToken = authHeader.split(' ')[1] || null
+    const clientAccessToken = req.cookies.accessToken
 
     if (!clientAccessToken) {
-      throw new ApiError('Unauthorized - Không có Token!', StatusCodes.UNAUTHORIZED)
+      throw new ApiError('Access token expired!', StatusCodes.UNAUTHORIZED)
     }
 
     const tokenDecoded = await jwtUtils.verifyToken(clientAccessToken, env.ACCESS_TOKEN_SECRET_SIGNATURE)
@@ -24,15 +18,14 @@ const Authenticate = async (req, res, next) => {
 
     next()
   } catch (error) {
-    console.log('Auth Error: ', error)
     // Bắt lỗi Token expired
     if (error?.name === 'TokenExpiredError') {
-      next(new ApiError('Token đã hết hạn!', StatusCodes.GONE))
+      next(new ApiError('Access token expired!', StatusCodes.UNAUTHORIZED))
       return
+    } else {
+      // Bắt lỗi bất kì trường hợp nào Token không hợp lệ
+      next(new ApiError('Unauthorized!', StatusCodes.UNAUTHORIZED))
     }
-
-    // Bắt lỗi bất kì trường hợp nào Token không hợp lệ
-    next(new ApiError('Unauthorized!', StatusCodes.UNAUTHORIZED))
   }
 }
 

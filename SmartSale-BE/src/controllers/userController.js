@@ -21,6 +21,17 @@ const getUserById = async (req, res, next) => {
   }
 }
 
+const createUser = async (req, res, next) => {
+  try {
+    const userData = req.body
+    const result = await userService.createUser(userData)
+
+    res.status(StatusCodes.OK).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 const updateById = async (req, res, next) => {
   try {
     const result = await userService.updateUserById(req.params.id, req.body, req.tokenDecoded.roleName)
@@ -45,5 +56,6 @@ export const userController = {
   getAllUsers,
   getUserById,
   updateById,
-  deleteById
+  deleteById,
+  createUser
 }

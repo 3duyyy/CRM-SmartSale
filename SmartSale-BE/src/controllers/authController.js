@@ -4,6 +4,14 @@ import { StatusCodes } from 'http-status-codes'
 import { redisService } from '../services/redisService.js'
 import { ApiError } from '../utils/ApiError.js'
 
+const COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: 'none',
+  path: '/',
+  maxAge: 7 * 24 * 60 * 60 * 1000
+}
+
 const register = async (req, res, next) => {
   try {
     const newUser = await authService.register(req.body)
@@ -17,6 +25,9 @@ const login = async (req, res, next) => {
   try {
     const userResult = await authService.login(req.body)
 
+    res.cookie('refreshToken', userResult.refreshToken, COOKIE_OPTIONS)
+    res.cookie('accessToken', userResult.accessToken, COOKIE_OPTIONS)
+
     res.status(StatusCodes.OK).json({ userResult })
   } catch (error) {
     next(error)
@@ -25,15 +36,8 @@ const login = async (req, res, next) => {
 
 const logout = async (req, res, next) => {
   try {
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'none',
-      path: '/'
-    }
-
-    res.clearCookie('accessToken', cookieOptions)
-    res.clearCookie('refreshToken', cookieOptions)
+    res.clearCookie('accessToken', COOKIE_OPTIONS)
+    res.clearCookie('refreshToken', COOKIE_OPTIONS)
 
     res.status(StatusCodes.OK).json({ loggedOut: true })
   } catch (error) {
@@ -43,8 +47,13 @@ const logout = async (req, res, next) => {
 
 const refreshToken = async (req, res, next) => {
   try {
-    if (req.cookies?.refreshToken === (await redisService.getRefreshToken(req.body.userId))) {
+    const userId = req.tokenDecoded.id
+    if (req.cookies?.refreshToken === (await redisService.getRefreshToken(userId))) {
       const tokenResult = await authService.refreshToken(req.cookies?.refreshToken)
+
+      res.cookie('refreshToken', tokenResult.refreshToken, COOKIE_OPTIONS)
+      res.cookie('accessToken', tokenResult.accessToken, COOKIE_OPTIONS)
+
       return res.status(StatusCodes.OK).json(tokenResult)
     }
     throw new ApiError('Đã có lỗi xảy ra', 401)

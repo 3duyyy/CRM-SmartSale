@@ -1,11 +1,11 @@
 import Joi from 'joi'
-import { customMessageObjectId, nameValidation, objectIdValidation } from '../utils/pattern.js'
+import { customMessage, emailValidation, nameValidation, objectIdValidation, passwordValidation } from '../utils/pattern.js'
 import { ApiError } from '../utils/ApiError.js'
 import { StatusCodes } from 'http-status-codes'
 
 const getUserById = async (req, res, next) => {
   const reqParamsSchema = Joi.object({
-    id: objectIdValidation.required().messages(customMessageObjectId.id)
+    id: objectIdValidation.required().messages(customMessage.id)
   })
 
   try {
@@ -17,10 +17,29 @@ const getUserById = async (req, res, next) => {
   }
 }
 
+const createUser = async (req, res, next) => {
+  const correctCondition = Joi.object({
+    name: nameValidation.required(),
+    email: emailValidation.required(),
+    password: passwordValidation.required(),
+    roles: objectIdValidation.required().messages(customMessage.role)
+  })
+
+  try {
+    await correctCondition.validateAsync(req.body, { abortEarly: false })
+    next()
+  } catch (error) {
+    const messages = error.details.map((e) => e.message)
+    next(new ApiError('Dữ liệu không hợp lệ', StatusCodes.BAD_REQUEST, messages))
+  }
+}
+
 const updateById = async (req, res, next) => {
   const reqBodySchema = Joi.object({
     name: nameValidation,
-    roles: objectIdValidation.messages(customMessageObjectId.role)
+    email: emailValidation,
+    password: passwordValidation,
+    roles: objectIdValidation.messages(customMessage.role)
   })
     .min(1)
     .unknown(false)
@@ -39,5 +58,6 @@ const updateById = async (req, res, next) => {
 
 export const userValidation = {
   getUserById,
-  updateById
+  updateById,
+  createUser
 }

@@ -3,6 +3,7 @@ import { userRepository } from '../repositories/userRepository.js'
 import { ApiError } from '../utils/ApiError.js'
 import { FIELD_NOT_RETURN } from '../utils/constants.js'
 import { leadRepository } from '../repositories/leadRepository.js'
+import bcrypt from 'bcryptjs'
 
 const getAllUsers = async () => {
   try {
@@ -27,16 +28,34 @@ const getUserById = async (userId) => {
   }
 }
 
-const updateUserById = async (userId, updateData, roleName) => {
+const createUser = async (userData) => {
   try {
-    if (updateData?.roles && roleName !== 'ADMIN') {
-      throw new ApiError('Bạn không có quyền sửa Role!', StatusCodes.FORBIDDEN)
+    const existedUser = await userRepository.findByEmail(userData?.email)
+    if (existedUser) throw new ApiError('Email đã tồn tại!', StatusCodes.BAD_REQUEST)
+
+    const hashedPassword = await bcrypt.hashSync(userData?.password, 10)
+    const createData = {
+      ...userData,
+      password: hashedPassword
     }
 
-    const result = await userRepository.updateById(userId, updateData, FIELD_NOT_RETURN)
+    return await userRepository.createUser(createData)
+  } catch (error) {
+    throw error
+  }
+}
+
+const updateUserById = async (userId, updateData) => {
+  try {
+    const updatedData = {
+      ...updateData,
+      password: bcrypt.hashSync(updateData?.password, 10)
+    }
+
+    const result = await userRepository.updateById(userId, updatedData, FIELD_NOT_RETURN)
     if (!result) throw new ApiError('Người dùng không tồn tại!', StatusCodes.NOT_FOUND)
 
-    return { data: result }
+    return result
   } catch (error) {
     throw error
   }
@@ -63,5 +82,6 @@ export const userService = {
   getAllUsers,
   getUserById,
   updateUserById,
-  deleteById
+  deleteById,
+  createUser
 }

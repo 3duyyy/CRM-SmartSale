@@ -3,15 +3,11 @@ import { axiosInstance } from '@/api/axiosInstance'
 
 interface AuthState {
   userData: any
-  accessToken: string | null
-  refreshToken: string | null
   loading: boolean
 }
 
 const initialState: AuthState = {
   userData: null,
-  accessToken: null,
-  refreshToken: null,
   loading: false
 }
 
@@ -52,41 +48,44 @@ export const registerApi = createAsyncThunk(
   }
 )
 
+export const logoutApi = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
+  try {
+    const res = await axiosInstance.post('/auth/logout')
+    return res.data
+  } catch (err) {
+    return rejectWithValue(err || 'Đăng xuất thất bại!')
+  }
+})
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
   reducers: {
-    logout(state) {
-      state.userData = null
-      state.accessToken = null
-      state.refreshToken = null
+    setUserData: (state, action) => {
+      state.userData = action.payload
     }
   },
   extraReducers: (builder) => {
     builder
       // Login
-      .addCase(loginApi.pending, (state) => {
-        state.loading = true
-        state.userData = null
-      })
       .addCase(loginApi.fulfilled, (state, action) => {
-        const { accessToken, refreshToken, userData } = action.payload
+        const { userData } = action.payload
         state.loading = false
         state.userData = userData
-        state.accessToken = accessToken
-        state.refreshToken = refreshToken
       })
       // Register
-      .addCase(registerApi.pending, (state) => {
-        state.loading = true
-        state.userData = null
-      })
-      .addCase(registerApi.fulfilled, (state, action) => {
+      .addCase(registerApi.fulfilled, (state) => {
         state.loading = false
-        state.userData = action.payload.userData
+      })
+      // Logout
+      .addCase(logoutApi.fulfilled, (state) => {
+        state.loading = false
+        state.userData = null
+        localStorage.clear()
       })
   }
 })
 
-export const { logout } = authSlice.actions
+export const { setUserData } = authSlice.actions
+
 export const authReducer = authSlice.reducer

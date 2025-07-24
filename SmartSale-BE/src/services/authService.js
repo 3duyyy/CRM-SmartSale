@@ -59,7 +59,9 @@ const login = async (reqBody) => {
 const refreshToken = async (clientRefreshToken) => {
   try {
     const tokenDecoded = await jwtUtils.verifyToken(clientRefreshToken, env.REFRESH_TOKEN_SECRET_SIGNATURE)
-    if (!tokenDecoded) return null
+    if (!tokenDecoded) {
+      throw new ApiError('Refresh Token expired!', StatusCodes.UNAUTHORIZED)
+    }
 
     const payload = {
       id: tokenDecoded.id,
@@ -73,7 +75,9 @@ const refreshToken = async (clientRefreshToken) => {
 
     return { accessToken: newAccessToken, refreshToken: newRefreshToken }
   } catch (error) {
-    throw error
+    if (error?.name === 'TokenExpiredError') {
+      throw ApiError('Refresh Token expired!')
+    }
   }
 }
 

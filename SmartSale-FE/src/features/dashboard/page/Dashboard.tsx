@@ -33,7 +33,7 @@ const Dashboard = () => {
         variant="h4"
         fontWeight={700}
         mb={5}
-        sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: '40px' }}
+        sx={{ display: 'flex', alignItems: 'center', gap: 1, fontSize: 38 }}
       >
         <MenuBook sx={{ fontSize: 35, mx: 1, mb: 0.6 }} />
         Dashboard tổng quan
