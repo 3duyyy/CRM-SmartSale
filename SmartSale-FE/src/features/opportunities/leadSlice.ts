@@ -50,6 +50,18 @@ export const sendMailToLead = createAsyncThunk<
   return res.data
 })
 
+export const dragLead = createAsyncThunk<
+  { message: string },
+  {
+    leadId: string
+    source: { status: string; order: number }
+    destination: { status: string; order: number }
+  }
+>('/leads/drag', async (payload) => {
+  const res = await axiosInstance.put('/leads/drag', payload)
+  return res.data
+})
+
 const initialState: InitialState = {
   all: [],
   reload: false,
@@ -70,6 +82,9 @@ const leadSlice = createSlice({
     },
     setAssigneeFilter: (state, action) => {
       state.assigneeFilter = action.payload
+    },
+    updateLocalLeadsAfterDrag: (state, action) => {
+      state.all = action.payload
     }
   },
   extraReducers: (builder) => {
@@ -96,6 +111,10 @@ const leadSlice = createSlice({
       // Send Email
       .addCase(sendMailToLead.fulfilled, (state, action) => {
         toast.success(action.payload.message)
+      })
+      .addCase(dragLead.fulfilled, (state, action) => {
+        toast.success(action.payload.message || 'Kéo thả thành công')
+        state.reload = true
       })
   }
 })

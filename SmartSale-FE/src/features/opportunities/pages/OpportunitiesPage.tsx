@@ -1,10 +1,11 @@
+// OpportunitiesPage.tsx
 import { Add, Search, SupportAgent } from '@mui/icons-material'
 import { Box, MenuItem, Stack, TextField, Tooltip, Typography, useTheme } from '@mui/material'
 import OpportunitiesColumn from '../components/OpportunitiesColumn'
 import { COLUMNS } from '../constant'
 import { useDispatch, useSelector } from 'react-redux'
 import { Dispatch, RootState } from '@/redux/store'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import {
   createNewLead,
   filterLeads,
@@ -12,21 +13,21 @@ import {
   setAssigneeFilter,
   setSearch,
   setStatusFilter,
-  updateLeadById
+  dragLead // Chỉ cần dragLead thunk
 } from '../leadSlice'
 import {
   closestCorners,
   DndContext,
   DragEndEvent,
   DragOverEvent,
-  DragOverlay,
   DragStartEvent,
   MouseSensor,
   TouchSensor,
   useSensor,
-  useSensors
+  useSensors,
+  DragOverlay
 } from '@dnd-kit/core'
-import { arrayMove } from '@dnd-kit/sortable'
+// import { arrayMove } from '@dnd-kit/sortable'
 import { toast } from 'react-toastify'
 import OpportunitiesCard from '../components/OpportunitiesCard'
 import ButtonCus from '@/components/ButtonCus'
@@ -40,44 +41,50 @@ import debounce from 'lodash.debounce'
 type LeadFormType = z.infer<typeof leadSchema>
 
 const OpportunitiesPage = () => {
-  // Xử lý dragoverlay
+  // State cho DragOverlay (lead đang được kéo)
   const [activeLead, setActiveLead] = useState<Lead | null>(null)
-  // Xử lý UI cho tạm thời trong lúc API đang call
+  // localLeads là trạng thái UI cục bộ, dùng để hiển thị optimistic update
   const [localLeads, setLocalLeads] = useState<Lead[]>([])
-  // Fix lỗi handleDragOver gán status làm handleDragEnd bị hiểu là kéo thả trong 1 column
-  const [draggedLeadStatus, setDraggedLeadStatus] = useState<string | null>(null)
-  // Open form add lead
+  // Mở/đóng form thêm lead
   const [isCreate, setIsCreate] = useState(false)
 
-  const { data } = useSelector((state: RootState) => state.users)
+  // Dùng useRef để lưu trạng thái leads ban đầu khi bắt đầu kéo, phục vụ rollback nếu API lỗi
+  const initialLeadsState = useRef<Lead[]>([])
 
+  const { data: usersData } = useSelector((state: RootState) => state.users)
   const user = useSelector((state: RootState) => state.auth.userData)
   const isAdmin = user?.roles?.name === 'ADMIN'
 
   const theme = useTheme()
-
   const dispatch = useDispatch<Dispatch>()
   const { all, search, statusFilter, assigneeFilter, reload } = useSelector((state: RootState) => state.leads)
 
+  // Đồng bộ localLeads với Redux 'all' mỗi khi 'all' thay đổi
+  // Điều này cũng sẽ hoạt động như một cơ chế "rollback" khi `reload` được kích hoạt
   useEffect(() => {
     setLocalLeads(all)
+    initialLeadsState.current = all // Cập nhật trạng thái khởi tạo cho rollback
   }, [all])
 
-  // Filter theo state để UI cập nhật ngay lập tức
-  const filteredLocalLeads: Lead[] = filterLeads(localLeads, search, statusFilter, assigneeFilter)
+  // Lọc leads để hiển thị trên UI
+  const filteredLocalLeads: Lead[] = useMemo(() => {
+    return filterLeads(localLeads, search, statusFilter, assigneeFilter)
+  }, [localLeads, search, statusFilter, assigneeFilter])
 
+  // Effect để gọi API getAllLeads mỗi khi các filter hoặc cờ reload thay đổi
   useEffect(() => {
-    const selectedUser = data.find((user) => user.name === assigneeFilter)
+    const selectedUser = usersData.find((user) => user.name === assigneeFilter)
     const assignedTo = selectedUser ? selectedUser._id : ''
 
     dispatch(getAllLeads({ search, status: statusFilter, assignedTo }))
-  }, [dispatch, reload, search, statusFilter, assigneeFilter, data])
+  }, [dispatch, reload, search, statusFilter, assigneeFilter, usersData])
 
+  // Lấy danh sách users
   useEffect(() => {
     dispatch(getAllUsers({ isPagination: false }))
   }, [dispatch])
 
-  // Debounce tránh call API quá nhiều khi search
+  // Debounce cho input search để tránh gọi API quá nhiều
   const debouncedSetSearch = useMemo(
     () =>
       debounce((value: string) => {
@@ -88,227 +95,181 @@ const OpportunitiesPage = () => {
 
   useEffect(() => {
     return () => {
-      debouncedSetSearch.cancel()
+      debouncedSetSearch.cancel() // Hủy bỏ debounce khi component unmount
     }
   }, [debouncedSetSearch])
 
   // ==============FORM CREATE=================
   const handleCreateLead = async (data: LeadFormType) => {
-    await dispatch(
-      createNewLead({
-        ...data,
-        status: data.status || 'moi',
-        company: data.company || null,
-        note: data.note || '',
-        assignedTo: data.assignedTo
-      })
-    ).unwrap()
-    toast.success('Tạo lead thành công!')
+    try {
+      await dispatch(
+        createNewLead({
+          ...data,
+          status: data.status || 'moi',
+          company: data.company || null,
+          note: data.note || '',
+          assignedTo: data.assignedTo
+        })
+      ).unwrap()
+      toast.success('Tạo lead thành công!')
+      setIsCreate(false) // Đóng form sau khi tạo thành công
+    } catch (error) {
+      console.error('Failed to create lead:', error)
+      toast.error('Tạo lead thất bại!')
+    }
   }
 
   // ==================Drag & Drop====================
+  // Cấu hình Sensors cho Dnd-kit
   const mouseSensor = useSensor(MouseSensor, {
     activationConstraint: {
-      distance: 15
+      distance: 15 // Kéo chuột 15px mới kích hoạt
     }
   })
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: {
-      delay: 300,
+      delay: 300, // Giữ 300ms trên thiết bị cảm ứng
       tolerance: 8
     }
   })
   const sensors = useSensors(mouseSensor, touchSensor)
 
+  // Xử lý khi bắt đầu kéo một item
   const handleDragStart = (e: DragStartEvent) => {
     const foundLead = localLeads.find((lead) => lead._id === e.active.id)
     if (foundLead) {
       setActiveLead(foundLead)
-      setDraggedLeadStatus(foundLead.status)
+      initialLeadsState.current = [...localLeads] // Lưu trạng thái hiện tại của localLeads để rollback
     }
   }
 
-  // Tương tự handleDragEnd nhưng chỉ xử lý khi kéo thả giữa các Column
+  // Xử lý khi item đang được kéo di chuyển qua một vị trí khác
+  // Mục đích chính: Cập nhật hiển thị DragOverlay cho mượt mà (nếu cần thay đổi cột)
   const handleDragOver = (e: DragOverEvent) => {
     const { active, over } = e
 
-    // Kéo vào column rỗng (over là card ảo)
-    if (typeof over.id === 'string' && over.id.startsWith('hide-card-')) {
-      const overLeadStatus = over.id.replace('hide-card-', '')
-      const activeLead = localLeads.find((lead) => lead._id === active.id)
-      if (!activeLead) return
-
-      // Đổi status tạm thời cho card đang kéo, order = 0
-      setLocalLeads((prev) =>
-        prev.map((lead) => (lead._id === active.id ? { ...lead, status: overLeadStatus, order: 0 } : lead))
-      )
-      return
-    }
-
     if (!over || active.id === over.id) return
 
-    // Lấy thông tin lead đang kéo và lead đang hover
-    const activeLead = localLeads.find((lead) => lead._id === active.id)
-    const overLead = localLeads.find((lead) => lead._id === over.id)
-    if (!activeLead || !overLead) return
+    const activeLeadItem = localLeads.find((lead) => lead._id === active.id)
+    if (!activeLeadItem) return
 
-    const activeLeadStatus = activeLead.status
-    const overLeadStatus = overLead.status
+    let targetStatus: string
 
-    // Nếu khác column thì mới xử lý
-    if (activeLeadStatus !== overLeadStatus) {
-      // Lấy danh sách các lead trong column đích
-      const targetColumnLeads = localLeads.filter(
-        (lead) => lead.status === overLeadStatus && lead._id !== activeLead._id
-      )
-
-      const overIndex = targetColumnLeads.findIndex((lead) => lead._id === overLead._id)
-
-      // Cập nhật order cho column đích
-      const newTargetLeads = [
-        ...targetColumnLeads.slice(0, overIndex),
-        { ...activeLead, status: overLeadStatus },
-        ...targetColumnLeads.slice(overIndex)
-      ].map((lead, idx) => ({
-        ...lead,
-        order: idx
-      }))
-
-      // Loại bỏ card đã kéo thả ra khỏi column cũ và cập nhật order cho column cũ
-      const oldColumnLeads = localLeads
-        .filter((lead) => lead.status === activeLeadStatus && lead._id !== activeLead._id)
-        .map((lead, index) => ({ ...lead, order: index }))
-
-      // Các Column khác giữ nguyên
-      const otherColumns = localLeads.filter(
-        (lead) => lead.status !== activeLeadStatus && lead.status !== overLeadStatus
-      )
-
-      setLocalLeads([...newTargetLeads, ...oldColumnLeads, ...otherColumns])
+    // Trường hợp kéo vào column rỗng (over là card ảo)
+    if (typeof over.id === 'string' && over.id.startsWith('hide-card-')) {
+      targetStatus = over.id.replace('hide-card-', '')
+    } else {
+      // Trường hợp kéo vào một lead khác
+      const overLeadItem = localLeads.find((lead) => lead._id === over.id)
+      if (!overLeadItem) return
+      targetStatus = overLeadItem.status
     }
+
+    // Cập nhật tạm thời status của activeLead cho DragOverlay hiển thị đúng
+    if (activeLeadItem.status !== targetStatus) {
+      setActiveLead((prevActive) => (prevActive ? { ...prevActive, status: targetStatus } : null))
+    }
+    // **Lưu ý:** KHÔNG CẬP NHẬT `localLeads` ở đây. Việc này sẽ gây giật lag.
+    // Mọi thay đổi thứ tự và trạng thái chính thức sẽ được xử lý ở `handleDragEnd`.
   }
 
-  const handleDragEnd = (e: DragEndEvent) => {
+  // Xử lý khi người dùng kết thúc thao tác kéo thả
+  const handleDragEnd = async (e: DragEndEvent) => {
     const { active, over } = e
-    if (!over) {
-      setDraggedLeadStatus(null)
+
+    setActiveLead(null) // Reset activeLead để ẩn DragOverlay
+
+    // Nếu không có đích đến hoặc kéo về cùng vị trí cũ, không làm gì cả
+    if (!over || active.id === over.id) {
+      // Có thể rollback UI về trạng thái ban đầu nếu người dùng thả ra ngoài không có đích
+      setLocalLeads(initialLeadsState.current)
       return
     }
 
-    // Xử lý overCard là card ảo (cho column rỗng)
+    const draggedLead = localLeads.find((lead) => lead._id === active.id)
+    if (!draggedLead) {
+      // Rollback nếu không tìm thấy lead đang kéo
+      setLocalLeads(initialLeadsState.current)
+      return
+    }
+
+    const sourceStatus = draggedLead.status // Trạng thái ban đầu của lead
+    const sourceOrder = draggedLead.order // Thứ tự ban đầu của lead
+
+    let destinationStatus: string
+    let destinationOrder: number
+
+    // Trường hợp kéo vào column rỗng (over là card ảo)
     if (typeof over.id === 'string' && over.id.startsWith('hide-card-')) {
-      const overLeadStatus = over.id.replace('hide-card-', '')
-      const activeLead = localLeads.find((lead) => lead._id === active.id)
-
-      const targetColumnLeads = localLeads.filter((lead) => lead.status === overLeadStatus)
-
-      if (targetColumnLeads.length === 0 && activeLead) {
-        dispatch(updateLeadById({ _id: activeLead._id, payload: { status: overLeadStatus, order: 0 } }))
-        toast.success('Kéo thả Lead thành công!')
-        setDraggedLeadStatus(null)
+      destinationStatus = over.id.replace('hide-card-', '')
+      destinationOrder = 0 // Luôn là vị trí đầu tiên trong cột rỗng
+    } else {
+      // Trường hợp kéo vào một lead khác
+      const overLead = localLeads.find((lead) => lead._id === over.id)
+      if (!overLead) {
+        setLocalLeads(initialLeadsState.current) // Rollback nếu overLead không tồn tại
         return
       }
+      destinationStatus = overLead.status
+
+      // Lấy tất cả leads trong cột đích (trừ lead đang kéo nếu nó đã ở đó)
+      const leadsInDestinationColumn = localLeads
+        .filter((lead) => lead.status === destinationStatus && lead._id !== draggedLead._id)
+        .sort((a, b) => a.order - b.order) // Đảm bảo sắp xếp đúng trước khi tìm index
+
+      // Tìm index của overLead trong danh sách đã lọc
+      const overIndex = leadsInDestinationColumn.findIndex((l) => l._id === overLead._id)
+      destinationOrder = overIndex !== -1 ? overIndex : leadsInDestinationColumn.length // Nếu không tìm thấy, thêm cuối
     }
 
-    const activeLead = localLeads.find((lead) => lead._id === active.id)
-    const overLead = localLeads.find((lead) => lead._id === over.id)
+    // Tạo một bản sao mới của localLeads để thực hiện optimistic update
+    const newLocalLeads = [...localLeads]
 
-    if (!activeLead || !overLead) {
-      setDraggedLeadStatus(null)
-      return
-    }
+    // 1. Xóa lead đang kéo khỏi vị trí cũ của nó
+    const currentSourceColumnLeads = newLocalLeads
+      .filter((l) => l.status === sourceStatus && l._id !== draggedLead._id)
+      .sort((a, b) => a.order - b.order)
 
-    const activeLeadStatus = draggedLeadStatus || activeLead.status
-    const overLeadStatus = overLead.status
+    // 2. Chèn lead đang kéo vào vị trí mới trong cột đích
+    // Tạo một đối tượng lead mới với status và order đã cập nhật
+    const updatedDraggedLead = { ...draggedLead, status: destinationStatus, order: destinationOrder }
 
-    // Kéo thả trong 1 column
-    if (activeLeadStatus === overLeadStatus) {
-      // Lọc những phần tử cùng status và không phải phần tử đang drag
-      const sameStatusLeads = localLeads.filter((lead) => lead.status === activeLeadStatus)
-      // .sort((a, b) => a.order - b.order)
+    // Lấy leads trong cột đích sau khi đã loại bỏ lead đang kéo (nếu nó ở đó ban đầu)
+    const currentDestinationColumnLeads = newLocalLeads
+      .filter((l) => l.status === destinationStatus && l._id !== draggedLead._id)
+      .sort((a, b) => a.order - b.order)
 
-      const activeIndex = sameStatusLeads.findIndex((lead) => lead._id === activeLead._id)
-      const overIndex = sameStatusLeads.findIndex((lead) => lead._id === overLead._id)
+    currentDestinationColumnLeads.splice(destinationOrder, 0, updatedDraggedLead)
 
-      const newOrderLeads = arrayMove(sameStatusLeads, activeIndex, overIndex)
+    // Cập nhật lại order cho các lead trong cột nguồn cũ
+    const finalSourceColumnLeads = currentSourceColumnLeads.map((l, idx) => ({ ...l, order: idx }))
 
-      setLocalLeads((prev) => {
-        return prev.map((lead) => {
-          if (lead.status !== activeLeadStatus) return lead
-          const foundLead = newOrderLeads.find((l) => l._id === lead._id)
-          return foundLead ? { ...lead, order: newOrderLeads.indexOf(foundLead) } : lead
+    // Cập nhật lại order cho các lead trong cột đích mới
+    const finalDestinationColumnLeads = currentDestinationColumnLeads.map((l, idx) => ({ ...l, order: idx }))
+
+    // 3. Hợp nhất lại các cột
+    const otherColumnsLeads = newLocalLeads.filter((l) => l.status !== sourceStatus && l.status !== destinationStatus)
+
+    const mergedLeads = [...finalSourceColumnLeads, ...finalDestinationColumnLeads, ...otherColumnsLeads]
+
+    // Cập nhật UI ngay lập tức (optimistic update)
+    setLocalLeads(mergedLeads)
+
+    // Gọi API dragLead với payload chuẩn xác
+    try {
+      await dispatch(
+        dragLead({
+          leadId: draggedLead._id,
+          source: { status: sourceStatus, order: sourceOrder },
+          destination: { status: destinationStatus, order: destinationOrder }
         })
-      })
-
-      newOrderLeads.forEach((lead, index) => {
-        if (lead.order !== index) {
-          dispatch(
-            updateLeadById({
-              _id: lead._id,
-              payload: { order: index }
-            })
-          )
-        }
-      })
+      ).unwrap()
+      // Nếu thành công, Redux reload sẽ tự động cập nhật lại `all` và `localLeads`
+    } catch (error) {
+      console.error('Drag Lead API failed:', error)
+      // Rollback UI nếu API thất bại: khôi phục trạng thái ban đầu của localLeads
+      setLocalLeads(initialLeadsState.current)
     }
-    // Kéo thả card giữa các column (đang bug - fix sau: fix call nhiều API)
-    else {
-      // Lọc những phần tử cùng status với phần tử bị drag vào
-      const targetColumnLeads = localLeads.filter(
-        (lead) => lead.status === overLeadStatus && lead._id !== activeLead._id
-      )
-      // .sort((a, b) => a.order - b.order)
-
-      const overIndex = localLeads.findIndex((lead) => lead._id === overLead._id)
-
-      // Chèn active card vào đúng index của column
-      const newTargetLeads = [
-        ...targetColumnLeads.slice(0, overIndex),
-        { ...activeLead, status: overLeadStatus },
-        ...targetColumnLeads.slice(overIndex)
-      ]
-
-      // Cập nhật lại index của column vừa được card kéo vào
-      const updatedOrderList = newTargetLeads.map((lead, index) => ({
-        ...lead,
-        order: index
-      }))
-
-      setLocalLeads((prevLead) =>
-        prevLead.map((lead) => {
-          const updatedLead = updatedOrderList.find((leadUpdated) => leadUpdated._id === lead._id)
-          // Cập nhật status và order cho lead vừa được kéo
-          if (updatedLead) return { ...lead, status: updatedLead.status, order: updatedLead.order }
-          // Xử lý giảm order đi 1 cho các lead có order lớn hơn lead vừa được kéo thả đi
-          // if (lead.status === activeLeadStatus && lead._id !== activeLead._id) {
-          //   return {
-          //     ...lead,
-          //     order: lead.order > activeLead.order ? lead.order - 1 : lead.order
-          //   }
-          // }
-          return lead
-        })
-      )
-
-      // Update tất cả các lead trong column target (cần update status vì bao gồm cả lead drag):
-      //       case:
-      // - lấy được 2 cột thay đổi
-      // - đánh index (order) cho cột.
-      // - đầu api order và stastus cho thằng được kéo
-      updatedOrderList.forEach((lead) => {
-        dispatch(updateLeadById({ _id: lead._id, payload: { order: lead.order, status: lead.status } }))
-      })
-
-      // Update order cho lead trong column cũ
-      localLeads
-        .filter((lead) => lead.status === activeLeadStatus && lead._id !== activeLead._id)
-        .forEach((lead) => {
-          if (lead.order > activeLead.order) {
-            dispatch(updateLeadById({ _id: lead._id, payload: { order: lead.order - 1 } }))
-          }
-        })
-    }
-    setActiveLead(null)
   }
 
   return (
@@ -353,13 +314,12 @@ const OpportunitiesPage = () => {
               variant="standard"
               sx={{ width: { xs: '200px', sm: '300px', md: '350px' } }}
               value={search}
-              onChange={(e) => dispatch(setSearch(e.target.value))}
+              onChange={(e) => debouncedSetSearch(e.target.value)}
             />
           </Box>
         </Box>
         <Box>
           <Tooltip title={!isAdmin ? 'Bạn không có quyền thực hiện chức năng này!' : ''} disableHoverListener={isAdmin}>
-            {/* Phải có thẻ span vì Button khi role là STAFF bị disabled rồi nên ko thể chạy các event */}
             <span>
               <ButtonCus
                 sxAdditional={{ px: 4, py: 1.5, fontSize: '16px' }}
@@ -376,7 +336,7 @@ const OpportunitiesPage = () => {
             open={isCreate}
             onClose={() => setIsCreate(false)}
             onSubmit={handleCreateLead}
-            users={data}
+            users={usersData}
             columns={COLUMNS}
             defaultValues={{ status: 'moi' }}
           />
@@ -480,7 +440,7 @@ const OpportunitiesPage = () => {
           onChange={(e) => dispatch(setAssigneeFilter(e.target.value))}
         >
           <MenuItem value="">Tất cả người phụ trách</MenuItem>
-          {data.map((user) => (
+          {usersData.map((user) => (
             <MenuItem key={user._id} value={user.name}>
               {user.name}
             </MenuItem>
@@ -505,7 +465,7 @@ const OpportunitiesPage = () => {
             px: { xs: 0, md: 3 },
             overflowY: 'hidden',
             overflowX: 'auto',
-            height: { xs: 'auto', md: 'calc(100vh - 240px)' } // Đảm bảo các column full height vùng hiển thị
+            height: { xs: 'auto', md: 'calc(100vh - 240px)' }
           }}
         >
           {COLUMNS.map((data) => (
@@ -514,20 +474,13 @@ const OpportunitiesPage = () => {
               title={data.label}
               color={data.color}
               status={data.status}
+              // Truyền leads đã được lọc và sắp xếp
               leads={filteredLocalLeads
                 .filter((lead) => lead?.status === data.status)
                 .sort((a, b) => a.order - b.order)}
             />
           ))}
-          <DragOverlay
-          // sx={{
-          //   transform: 'translate3d(0, 0, 0)',
-          //   willChange: 'transform',
-          //   pointerEvents: 'none'
-          // }}
-          >
-            {activeLead ? <OpportunitiesCard lead={activeLead} /> : null}
-          </DragOverlay>
+          <DragOverlay>{activeLead ? <OpportunitiesCard lead={activeLead} /> : null}</DragOverlay>
         </Box>
       </DndContext>
     </Box>
