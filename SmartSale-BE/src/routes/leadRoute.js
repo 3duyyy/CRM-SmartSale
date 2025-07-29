@@ -7,6 +7,7 @@ import { authMiddleware } from '../middlewares/authMiddleware.js'
 
 const Router = express.Router()
 Router.use(authMiddleware.Authenticate)
+Router.route('/drag').put(checkPermission(PERMISSIONS.REORDER_LEAD), leadValidation.dragLead, leadController.dragLead)
 Router.route('/')
   .get(checkPermission(PERMISSIONS.VIEW_LEAD), leadController.getAllLeads)
   .post(checkPermission(PERMISSIONS.CREATE_LEAD), leadValidation.createNew, leadController.createNew)
@@ -15,5 +16,4 @@ Router.route('/:id')
   .put(checkPermission(PERMISSIONS.EDIT_LEAD), leadValidation.updateLead, leadController.updateById)
   .delete(checkPermission(PERMISSIONS.DELETE_LEAD), leadController.deleteById)
 Router.route('/send-email').post(checkPermission(PERMISSIONS.SEND_MAIL), leadValidation.sendMailToLead, leadController.sendMailToLead)
-
 export const leadRoute = Router

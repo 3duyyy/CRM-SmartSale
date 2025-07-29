@@ -100,8 +100,42 @@ const sendMailToLead = async (req, res, next) => {
   }
 }
 
+const dragLead = async (req, res, next) => {
+  const correctCondition = Joi.object({
+    leadId: objectIdValidation.required().messages({
+      'any.required': 'Thiếu leadId!',
+      'string.pattern.base': 'leadId không hợp lệ!'
+    }),
+    source: Joi.object({
+      status: Joi.string().valid('moi', 'tiep_can', 'cham_soc', 'da_chot', 'da_huy').required(),
+      order: Joi.number().min(0).required()
+    })
+      .required()
+      .messages({
+        'any.required': 'Thiếu thông tin source!'
+      }),
+    destination: Joi.object({
+      status: Joi.string().valid('moi', 'tiep_can', 'cham_soc', 'da_chot', 'da_huy').required(),
+      order: Joi.number().min(0).required()
+    })
+      .required()
+      .messages({
+        'any.required': 'Thiếu thông tin destination!'
+      })
+  })
+
+  try {
+    await correctCondition.validateAsync(req.body, { abortEarly: false })
+    next()
+  } catch (error) {
+    const messages = error.details.map((e) => e.message)
+    next(new ApiError('Dữ liệu không hợp lệ', StatusCodes.BAD_REQUEST, messages))
+  }
+}
+
 export const leadValidation = {
   createNew,
   updateLead,
-  sendMailToLead
+  sendMailToLead,
+  dragLead
 }

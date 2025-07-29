@@ -78,11 +78,26 @@ const sendMailToLead = async (req, res, next) => {
   }
 }
 
+const dragLead = async (req, res, next) => {
+  try {
+    const result = await leadService.dragLeadService({
+      leadId: req.body.leadId,
+      source: req.body.source,
+      destination: req.body.destination,
+      tokenDecoded: req.tokenDecoded
+    })
+    res.status(200).json(result)
+  } catch (error) {
+    next(error)
+  }
+}
+
 export const leadController = {
   createNew,
   getLeadById,
   getAllLeads,
   updateById,
   deleteById,
-  sendMailToLead
+  sendMailToLead,
+  dragLead
 }
