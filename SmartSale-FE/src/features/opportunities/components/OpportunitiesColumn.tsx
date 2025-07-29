@@ -27,7 +27,7 @@ const OpportunitiesColumn = ({
   const [isView, setIsView] = useState(false)
 
   const dispatch = useDispatch<Dispatch>()
-  const { users } = useSelector((state: RootState) => state.users)
+  const { data } = useSelector((state: RootState) => state.users)
 
   const handleOpenViewForm = (lead: Lead) => {
     setSelectedLead(lead)
@@ -50,22 +50,18 @@ const OpportunitiesColumn = ({
   }
 
   const handleUpdateLead = async (data) => {
-    try {
-      await dispatch(
-        updateLeadById({
-          _id: selectedLead._id,
-          payload: {
-            ...data,
-            company: data.company || null,
-            note: data.note || '',
-            assignedTo: data.assignedTo
-          }
-        })
-      ).unwrap()
-      toast.success('Cập nhật lead thành công!')
-    } catch (err) {
-      toast.error(err?.message || 'Cập nhật lead thất bại!')
-    }
+    await dispatch(
+      updateLeadById({
+        _id: selectedLead._id,
+        payload: {
+          ...data,
+          company: data.company || null,
+          note: data.note || '',
+          assignedTo: data.assignedTo
+        }
+      })
+    ).unwrap()
+    toast.success('Cập nhật lead thành công!')
   }
 
   const totalAmount = leads.reduce((sum, lead) => sum + (lead.value || 0), 0)
@@ -167,7 +163,7 @@ const OpportunitiesColumn = ({
                 ? selectedLead.assignedTo._id
                 : selectedLead?.assignedTo || ''
           }}
-          users={users}
+          users={data}
           columns={COLUMNS}
         />
       )}
@@ -183,7 +179,7 @@ const OpportunitiesColumn = ({
                 ? selectedLead.assignedTo._id
                 : selectedLead?.assignedTo || ''
           }}
-          users={users}
+          users={data}
           columns={COLUMNS}
         />
       )}

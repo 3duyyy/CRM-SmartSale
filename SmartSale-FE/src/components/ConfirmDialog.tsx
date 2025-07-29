@@ -22,7 +22,7 @@ const ConfirmDialog = ({ open, onClose, onConfirm, title, content }: ConfirmDial
         }
       }}
     >
-      <DialogTitle id="confirm-dialog-title" sx={{ m: 0, p: 2, fontWeight: 700, fontSize: 28 }}>
+      <DialogTitle id="confirm-dialog-title" sx={{ m: 0, p: 2, fontWeight: 'bold', fontSize: 24 }}>
         {title}
         <IconButton
           aria-label="close"

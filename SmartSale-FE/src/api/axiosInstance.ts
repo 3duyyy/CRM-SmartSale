@@ -38,7 +38,7 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config
     const message = error?.response?.data?.message
-    console.log('error: ', error)
+    console.log('message: ', message)
 
     if (error?.response.status === 401 && message === 'Access token expired!' && !originalRequest._retry) {
       // Là field tự custom để đánh dấu request đã được retry
@@ -75,9 +75,11 @@ axiosInstance.interceptors.response.use(
 
     // Set default message
     let errorMessage = error?.message
+
     if (message) {
       errorMessage = message
     }
+
     toast.error(errorMessage)
     return Promise.reject(error)
   }

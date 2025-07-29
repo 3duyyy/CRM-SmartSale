@@ -10,21 +10,49 @@ export interface User {
   roles: Role
 }
 
+export interface Pagination {
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+  isPagination: boolean
+}
+
+export interface GetAllUsers {
+  data: User[]
+  pagination: Pagination
+}
+
 export interface InitialState {
-  users: User[]
+  data: User[]
   loading: boolean
+  searchUser: string
+  roleFilter: string
+  pagination: Pagination
   reload: boolean
 }
 
 const initialState: InitialState = {
-  users: [],
+  data: [],
   loading: false,
+  searchUser: '',
+  roleFilter: '',
+  pagination: {
+    page: 1,
+    limit: 9,
+    total: 0,
+    totalPages: 0,
+    isPagination: true
+  },
   reload: false
 }
 
-export const getAllUsers = createAsyncThunk<User[]>('/users/getAll', async () => {
-  const res = await axiosInstance.get('/users')
-  return res.data?.data
+export const getAllUsers = createAsyncThunk<
+  GetAllUsers,
+  { searchUser?: string; role?: string; page?: number; limit?: number; isPagination?: boolean }
+>('/users/getAll', async (params = {}) => {
+  const res = await axiosInstance.get('/users', { params })
+  return res.data
 })
 
 export const updateUserById = createAsyncThunk<User, { _id: string; payload: Partial<User> }>(
@@ -48,23 +76,31 @@ export const deleteUserById = createAsyncThunk<string, string>('/users/delete', 
 const userSlice = createSlice({
   name: 'users',
   initialState,
-  reducers: {},
+  reducers: {
+    setSearchUser: (state, action) => {
+      state.searchUser = action.payload
+    },
+    setRoleFilter: (state, action) => {
+      state.roleFilter = action.payload
+    }
+  },
   extraReducers: (builder) => {
     builder
       // Get All
       .addCase(getAllUsers.fulfilled, (state, action) => {
-        state.users = action.payload
+        state.data = action.payload.data
+        state.pagination = action.payload.pagination
         state.reload = false
       })
       // Update
       .addCase(updateUserById.fulfilled, (state, action) => {
         const updatedData = action.payload
-        const indexUpdate = state.users.findIndex((user) => user._id === updatedData._id)
-        if (indexUpdate !== -1) state.users[indexUpdate] = updatedData
+        const indexUpdate = state.data.findIndex((user) => user._id === updatedData._id)
+        if (indexUpdate !== -1) state.data[indexUpdate] = updatedData
       })
       // Create
       .addCase(createNewUser.fulfilled, (state, action) => {
-        state.users.push(action.payload)
+        state.data.push(action.payload)
       })
       // Delete
       .addCase(deleteUserById.fulfilled, (state) => {
@@ -73,4 +109,5 @@ const userSlice = createSlice({
   }
 })
 
+export const { setSearchUser, setRoleFilter } = userSlice.actions
 export const userReducer = userSlice.reducer

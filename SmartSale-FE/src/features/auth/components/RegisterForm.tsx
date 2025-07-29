@@ -55,6 +55,7 @@ const RegisterForm = () => {
         label="Họ tên"
         fullWidth
         variant="outlined"
+        autoFocus
         {...register('name')}
         error={!!errors.name}
         helperText={errors.name?.message}

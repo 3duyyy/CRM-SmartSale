@@ -1,7 +1,9 @@
 import {
   Box,
-  Button,
   IconButton,
+  InputAdornment,
+  MenuItem,
+  Pagination,
   Stack,
   Table,
   TableBody,
@@ -13,10 +15,18 @@ import {
   Typography,
   useTheme
 } from '@mui/material'
-import { Add, Delete, Edit, Search } from '@mui/icons-material'
+import { Add, Delete, Edit, LockReset, Search, SupportAgent } from '@mui/icons-material'
 import { useEffect, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
-import { createNewUser, deleteUserById, getAllUsers, updateUserById, User } from '../userSlice'
+import {
+  createNewUser,
+  deleteUserById,
+  getAllUsers,
+  setRoleFilter,
+  setSearchUser,
+  updateUserById,
+  User
+} from '../userSlice'
 import { Dispatch, RootState } from '@/redux/store'
 import ConfirmDialog from '@/components/ConfirmDialog'
 import { toast } from 'react-toastify'
@@ -32,15 +42,14 @@ const UserManagement = () => {
   const [selectedUser, setSelectedUser] = useState<User>(null)
 
   const dispatch = useDispatch<Dispatch>()
-  const { users } = useSelector((state: RootState) => state.users)
+  const { data, pagination, searchUser, roleFilter, reload } = useSelector((state: RootState) => state.users)
   const roleList = useSelector((state: RootState) => state.roles.roles)
-  const reload = useSelector((state: RootState) => state.users.reload)
 
   const theme = useTheme()
 
   useEffect(() => {
-    dispatch(getAllUsers())
-  }, [dispatch, reload])
+    dispatch(getAllUsers({ searchUser, role: roleFilter, isPagination: true }))
+  }, [dispatch, reload, searchUser, roleFilter])
 
   const handleOpenCreate = () => {
     setFormMode('create')
@@ -65,44 +74,117 @@ const UserManagement = () => {
   }
 
   const handleConfirmDelete = async () => {
-    try {
-      await dispatch(deleteUserById(selectedUser._id)).unwrap()
-      toast.success('Xoá người dùng thành công!')
-      setOpenConfirm(false)
-    } catch (error) {
-      toast.error(error?.message || 'Xoá người dùng thất bại!')
-    }
+    await dispatch(deleteUserById(selectedUser._id)).unwrap()
+    toast.success('Xoá người dùng thành công!')
+    setOpenConfirm(false)
   }
 
   const handleResetPassword = async (data: any) => {
-    try {
-      const payload = { password: data.password }
-      await dispatch(updateUserById({ _id: selectedUser._id, payload })).unwrap()
-      toast.success('Đổi mật khẩu thành công!')
-      setOpenResetForm(false)
-    } catch (error) {
-      toast.error(error?.message || 'Đổi mật khẩu thất bại!')
-    }
+    const payload = { password: data.password }
+    await dispatch(updateUserById({ _id: selectedUser._id, payload })).unwrap()
+    toast.success('Đổi mật khẩu thành công!')
+    setOpenResetForm(false)
   }
 
   return (
     <Box sx={{ px: 4, py: 3, bgcolor: '#f6f8fa', minHeight: '100vh', maxHeight: '100vh' }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
-          <Typography variant="h5" fontWeight="bold" fontSize={36} color={theme.palette.primary.main}>
+          <Typography variant="h5" fontWeight="bold" fontSize={36} color={theme.palette.primary.dark}>
             Quản lý người dùng
           </Typography>
-          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, mt: 1 }}>
-            <Search sx={{ fontSize: '28px', color: theme.palette.primary.main }} />
+          <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, mt: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+              <TextField
+                id="find-lead-input"
+                label="Tìm kiếm"
+                placeholder="Nhập vào tên người dùng..."
+                variant="outlined"
+                size="small"
+                sx={{
+                  minWidth: 280,
+                  bgcolor: '#f9fafb',
+                  boxShadow: 2,
+                  borderRadius: 3,
+                  border: '1.5px solid #e0e7ef',
+                  '& .MuiInputBase-root': {
+                    borderRadius: 3,
+                    px: 1.5,
+                    py: 0.5,
+                    bgcolor: '#f9fafb'
+                  },
+                  '& .MuiOutlinedInput-notchedOutline': {
+                    border: 'none'
+                  },
+                  '&:hover': {
+                    boxShadow: 4,
+                    bgcolor: '#f1f3f6'
+                  },
+                  '& .MuiInputLabel-root': {
+                    fontWeight: 600,
+                    color: theme.palette.primary.main
+                  }
+                }}
+                slotProps={{
+                  input: {
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <Search sx={{ color: theme.palette.primary.main }} />
+                      </InputAdornment>
+                    )
+                  }
+                }}
+                value={searchUser}
+                onChange={(e) => dispatch(setSearchUser(e.target.value))}
+              />
+            </Box>
             <TextField
-              id="find-lead-input"
-              label="Tìm kiếm cơ hội kinh doanh"
-              placeholder="Nhập vào tên khách hàng/công ty cần tìm..."
-              variant="standard"
-              sx={{ width: { xs: '200px', sm: '300px', md: '350px' } }}
-              // value={}
-              // onChange={}
-            />
+              size="small"
+              select
+              label="Vai trò"
+              sx={{
+                minWidth: 180,
+                bgcolor: '#f9fafb',
+                boxShadow: 2,
+                borderRadius: 3,
+                ml: 1,
+                border: '1.5px solid #e0e7ef',
+                '& .MuiInputBase-root': {
+                  borderRadius: 3,
+                  px: 1.5,
+                  py: 0.5,
+                  bgcolor: '#f9fafb'
+                },
+                '& .MuiOutlinedInput-notchedOutline': {
+                  border: 'none'
+                },
+                '&:hover': {
+                  boxShadow: 4,
+                  bgcolor: '#f1f3f6'
+                },
+                '& .MuiInputLabel-root': {
+                  fontWeight: 600,
+                  color: theme.palette.primary.main
+                },
+                '& .MuiSelect-icon': {
+                  color: theme.palette.primary.main
+                }
+              }}
+              slotProps={{
+                input: {
+                  startAdornment: <SupportAgent sx={{ color: theme.palette.primary.main, mr: 1 }} fontSize="small" />
+                }
+              }}
+              value={roleFilter}
+              onChange={(e) => dispatch(setRoleFilter(e.target.value))}
+            >
+              <MenuItem value="">Tất cả trạng thái</MenuItem>
+              {roleList.map((role) => (
+                <MenuItem key={role._id} value={role._id}>
+                  {role.name}
+                </MenuItem>
+              ))}
+            </TextField>
           </Box>
         </Box>
         <ButtonCus
@@ -124,34 +206,24 @@ const UserManagement = () => {
           </TableRow>
         </TableHead>
         <TableBody>
-          {users?.map((user) => (
+          {data?.map((user) => (
             <TableRow key={user._id}>
               <TableCell>{user.name}</TableCell>
               <TableCell>{user.email}</TableCell>
               <TableCell>{user.roles?.name}</TableCell>
               <TableCell align="right">
-                <Button
-                  sx={{
-                    borderRadius: 3,
-                    boxShadow: 3,
-                    bgcolor: theme.palette.primary.main,
-                    color: '#fff',
-                    px: 2,
-                    py: 0.8,
-                    mt: { xs: 2, md: 0 },
-                    '&:hover': { bgcolor: theme.palette.primary.dark }
-                  }}
-                  onClick={() => handleOpenReset(user)}
-                >
-                  Đặt lại mật khẩu
-                </Button>
+                <Tooltip title="Đặt lại mật khẩu">
+                  <IconButton color="warning" onClick={() => handleOpenReset(user)}>
+                    <LockReset fontSize="small" sx={{ fontSize: 22 }} />
+                  </IconButton>
+                </Tooltip>
                 <Tooltip title="Chỉnh sửa">
-                  <IconButton onClick={() => handleOpenUpdate(user)}>
+                  <IconButton color="primary" onClick={() => handleOpenUpdate(user)}>
                     <Edit fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title="Xoá">
-                  <IconButton onClick={() => handleDeleteUser(user)}>
+                  <IconButton color="error" onClick={() => handleDeleteUser(user)}>
                     <Delete fontSize="small" />
                   </IconButton>
                 </Tooltip>
@@ -160,6 +232,19 @@ const UserManagement = () => {
           ))}
         </TableBody>
       </Table>
+      {pagination?.totalPages > 1 && (
+        <Stack direction="row" justifyContent="center" mt={2}>
+          <Pagination
+            count={pagination.totalPages}
+            page={pagination.page}
+            onChange={(_, value) => {
+              dispatch(getAllUsers({ searchUser, role: roleFilter, page: value, isPagination: true }))
+            }}
+            color="primary"
+            shape="rounded"
+          />
+        </Stack>
+      )}
 
       {/* Form Create + Update */}
       <FormUserBase
@@ -168,20 +253,16 @@ const UserManagement = () => {
         mode={formMode}
         open={openForm}
         onClose={() => setOpenForm(false)}
-        defaultValues={selectedUser}
+        defaultValues={{ ...selectedUser, roles: selectedUser?.roles?._id }}
         onSubmit={async (data) => {
-          try {
-            if (formMode === 'create') {
-              await dispatch(createNewUser(data)).unwrap()
-              toast.success('Tạo người dùng thành công!')
-            } else {
-              await dispatch(updateUserById({ _id: selectedUser._id, payload: data })).unwrap()
-              toast.success('Cập nhật người dùng thành công!')
-            }
-            dispatch(getAllUsers())
-          } catch (error) {
-            toast.error(error?.message || 'Lỗi thao tác!')
+          if (formMode === 'create') {
+            await dispatch(createNewUser(data)).unwrap()
+            toast.success('Tạo người dùng thành công!')
+          } else {
+            await dispatch(updateUserById({ _id: selectedUser._id, payload: data })).unwrap()
+            toast.success('Cập nhật người dùng thành công!')
           }
+          dispatch(getAllUsers({}))
         }}
         rolesList={roleList}
       />

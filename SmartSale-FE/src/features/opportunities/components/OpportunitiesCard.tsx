@@ -43,29 +43,21 @@ const OpportunitiesCard = ({ lead, isEmptyColumn, onUpdate, onView }: LeadCardPr
 
   const dispatch = useDispatch<Dispatch>()
   const handleDelete = async () => {
-    try {
-      await dispatch(deleteLeadById(lead._id)).unwrap()
-      setOpenConfirm(false)
-      toast.success('Xóa Lead thành công!')
-    } catch (error) {
-      toast.error(error?.message || 'Không thể xóa Lead!')
-    }
+    await dispatch(deleteLeadById(lead._id)).unwrap()
+    setOpenConfirm(false)
+    toast.success('Xóa Lead thành công!')
   }
 
   const handleSendEmail = async (lead: Lead) => {
-    try {
-      await dispatch(
-        sendMailToLead({
-          email: lead.email,
-          name: lead.name,
-          company: lead.company,
-          status: lead.status,
-          value: lead.value
-        })
-      ).unwrap()
-    } catch (error) {
-      toast.error(error?.message || 'Gửi Mail thất bại!')
-    }
+    await dispatch(
+      sendMailToLead({
+        email: lead.email,
+        name: lead.name,
+        company: lead.company,
+        status: lead.status,
+        value: lead.value
+      })
+    ).unwrap()
   }
 
   return (
@@ -170,7 +162,7 @@ const OpportunitiesCard = ({ lead, isEmptyColumn, onUpdate, onView }: LeadCardPr
         open={openConfirm}
         onClose={handleCloseDeleteDialog}
         onConfirm={handleDelete}
-        title="Xác nhận xóa Lead"
+        title="Xóa Lead"
         content={`Bạn có chắc chắn muốn xóa khách hàng "${lead?.name}" không?`}
       />
     </>

@@ -11,50 +11,22 @@ const initialState: AuthState = {
   loading: false
 }
 
-export const loginApi = createAsyncThunk(
-  'auth/login',
-  async (
-    payload: {
-      email: string
-      password: string
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      const res = await axiosInstance.post('/auth/login', payload)
-      return res.data.userResult
-    } catch (err) {
-      return rejectWithValue(err || 'Đăng nhập thất bại!')
-    }
-  }
-)
+export const loginApi = createAsyncThunk('auth/login', async (payload: { email: string; password: string }) => {
+  const res = await axiosInstance.post('/auth/login', payload)
+  return res.data.userResult
+})
 
 export const registerApi = createAsyncThunk(
   'auth/register',
-  async (
-    payload: {
-      name: string
-      email: string
-      password: string
-    },
-    { rejectWithValue }
-  ) => {
-    try {
-      const res = await axiosInstance.post('/auth/register', payload)
-      return res.data
-    } catch (err) {
-      return rejectWithValue(err || 'Đăng ký thất bại!')
-    }
+  async (payload: { name: string; email: string; password: string }) => {
+    const res = await axiosInstance.post('/auth/register', payload)
+    return res.data
   }
 )
 
-export const logoutApi = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) => {
-  try {
-    const res = await axiosInstance.post('/auth/logout')
-    return res.data
-  } catch (err) {
-    return rejectWithValue(err || 'Đăng xuất thất bại!')
-  }
+export const logoutApi = createAsyncThunk('auth/logout', async () => {
+  const res = await axiosInstance.post('/auth/logout')
+  return res.data
 })
 
 const authSlice = createSlice({

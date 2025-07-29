@@ -29,7 +29,7 @@ import { getAllRoles } from '@/redux/roleSlice'
 const menuItems = [
   { label: 'Dashboard', icon: <DashboardIcon />, path: '/dashboards' },
   { label: 'Opportunities', icon: <AssignmentIcon />, path: '/opportunities' },
-  { label: 'Follow-up', icon: <RepeatIcon />, path: '/follow-up' },
+  { label: 'Follow-up', icon: <RepeatIcon />, path: '/follow-ups' },
   { label: 'Người dùng', icon: <PeopleIcon />, path: '/users' },
   { label: 'Tài khoản', icon: <SettingsIcon />, isCheckAccount: true }
 ]
@@ -65,20 +65,16 @@ const Sidebar = () => {
   }
 
   const handleSubmitForm = async (data) => {
-    try {
-      const res = await dispatch(
-        updateUserById({
-          _id: userData._id,
-          payload: data
-        })
-      ).unwrap()
+    const res = await dispatch(
+      updateUserById({
+        _id: userData._id,
+        payload: data
+      })
+    ).unwrap()
 
-      // Xử lý cập nhật userData sau khi update
-      dispatch(setUserData({ ...userData, ...res }))
-      toast.success('Cập nhật tài khoản thành công!')
-    } catch (err) {
-      toast.error(err?.message || 'Cập nhật tài khoản thất bại!')
-    }
+    // Xử lý cập nhật userData sau khi update
+    dispatch(setUserData({ ...userData, ...res }))
+    toast.success('Cập nhật tài khoản thành công!')
   }
 
   return (
@@ -105,7 +101,7 @@ const Sidebar = () => {
             textAlign: 'center',
             mb: 4,
             letterSpacing: 1,
-            fontSize: '35px',
+            fontSize: '30px',
             color: 'white'
           }}
         >

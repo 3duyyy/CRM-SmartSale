@@ -8,6 +8,7 @@ import Dashboard from '@/features/dashboard/page/Dashboard'
 import OpportunitiesPage from '@/features/opportunities/pages/OpportunitiesPage'
 import AdminRoute from './AdminRoute'
 import UserManagement from '@/features/users/pages/UserManagement'
+import FollowUpPage from '@/features/follow-up/pages/FollowUpPage'
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
           {
             path: 'opportunities',
             element: <OpportunitiesPage />
+          },
+          {
+            path: 'follow-ups',
+            element: <FollowUpPage />
           },
           {
             element: <AdminRoute />,

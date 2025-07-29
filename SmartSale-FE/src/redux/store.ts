@@ -5,6 +5,8 @@ import { persistReducer } from 'redux-persist'
 import { leadReducer } from '@/features/opportunities/leadSlice'
 import { userReducer } from '@/features/users/userSlice'
 import { roleReducer } from './roleSlice'
+import { followUpReducer } from '@/features/follow-up/followUpSlice'
+import { dashboardReducer } from '@/features/dashboard/dashboardSlice'
 
 const persistConfig = {
   key: 'root',
@@ -16,7 +18,9 @@ const rootReducer = combineReducers({
   auth: authReducer,
   leads: leadReducer,
   users: userReducer,
-  roles: roleReducer
+  roles: roleReducer,
+  followUps: followUpReducer,
+  dashboards: dashboardReducer
 })
 
 const persistedReducer = persistReducer(persistConfig, rootReducer)

@@ -49,7 +49,8 @@ const OpportunitiesPage = () => {
   // Open form add lead
   const [isCreate, setIsCreate] = useState(false)
 
-  const { users } = useSelector((state: RootState) => state.users)
+  const { data } = useSelector((state: RootState) => state.users)
+
   const user = useSelector((state: RootState) => state.auth.userData)
   const isAdmin = user?.roles?.name === 'ADMIN'
 
@@ -66,14 +67,14 @@ const OpportunitiesPage = () => {
   const filteredLocalLeads: Lead[] = filterLeads(localLeads, search, statusFilter, assigneeFilter)
 
   useEffect(() => {
-    const selectedUser = users.find((user) => user.name === assigneeFilter)
+    const selectedUser = data.find((user) => user.name === assigneeFilter)
     const assignedTo = selectedUser ? selectedUser._id : ''
 
     dispatch(getAllLeads({ search, status: statusFilter, assignedTo }))
-  }, [dispatch, reload, search, statusFilter, assigneeFilter, users])
+  }, [dispatch, reload, search, statusFilter, assigneeFilter, data])
 
   useEffect(() => {
-    dispatch(getAllUsers())
+    dispatch(getAllUsers({ isPagination: false }))
   }, [dispatch])
 
   // Debounce tránh call API quá nhiều khi search
@@ -93,20 +94,16 @@ const OpportunitiesPage = () => {
 
   // ==============FORM CREATE=================
   const handleCreateLead = async (data: LeadFormType) => {
-    try {
-      await dispatch(
-        createNewLead({
-          ...data,
-          status: data.status || 'moi',
-          company: data.company || null,
-          note: data.note || '',
-          assignedTo: data.assignedTo
-        })
-      ).unwrap()
-      toast.success('Tạo lead thành công!')
-    } catch (err: any) {
-      toast.error(err?.message || 'Tạo lead thất bại!')
-    }
+    await dispatch(
+      createNewLead({
+        ...data,
+        status: data.status || 'moi',
+        company: data.company || null,
+        note: data.note || '',
+        assignedTo: data.assignedTo
+      })
+    ).unwrap()
+    toast.success('Tạo lead thành công!')
   }
 
   // ==================Drag & Drop====================
@@ -336,7 +333,7 @@ const OpportunitiesPage = () => {
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           <Typography
             variant="h1"
-            fontWeight={800}
+            fontWeight="bold"
             sx={{
               display: 'flex',
               alignItems: 'center',
@@ -379,7 +376,7 @@ const OpportunitiesPage = () => {
             open={isCreate}
             onClose={() => setIsCreate(false)}
             onSubmit={handleCreateLead}
-            users={users}
+            users={data}
             columns={COLUMNS}
             defaultValues={{ status: 'moi' }}
           />
@@ -404,7 +401,7 @@ const OpportunitiesPage = () => {
         <TextField
           size="small"
           select
-          label="Tất cả trạng thái"
+          label="Trạng thái"
           sx={{
             minWidth: 180,
             bgcolor: '#f9fafb',
@@ -426,14 +423,14 @@ const OpportunitiesPage = () => {
             },
             '& .MuiInputLabel-root': {
               fontWeight: 600,
-              color: '#636e72'
+              color: theme.palette.primary.main
             },
             '& .MuiSelect-icon': {
-              color: '#6c63ff'
+              color: theme.palette.primary.main
             }
           }}
           InputProps={{
-            startAdornment: <SupportAgent sx={{ color: '#6c63ff', mr: 1 }} fontSize="small" />
+            startAdornment: <SupportAgent sx={{ color: theme.palette.primary.main, mr: 1 }} fontSize="small" />
           }}
           value={statusFilter}
           onChange={(e) => dispatch(setStatusFilter(e.target.value))}
@@ -448,7 +445,7 @@ const OpportunitiesPage = () => {
         <TextField
           size="small"
           select
-          label="Tất cả người phụ trách"
+          label="Người phụ trách"
           sx={{
             minWidth: 220,
             bgcolor: '#f9fafb',
@@ -470,20 +467,20 @@ const OpportunitiesPage = () => {
             },
             '& .MuiInputLabel-root': {
               fontWeight: 600,
-              color: '#636e72'
+              color: theme.palette.primary.main
             },
             '& .MuiSelect-icon': {
-              color: '#00b894'
+              color: theme.palette.primary.main
             }
           }}
           InputProps={{
-            startAdornment: <SupportAgent sx={{ color: '#00b894', mr: 1 }} fontSize="small" />
+            startAdornment: <SupportAgent sx={{ color: theme.palette.primary.main, mr: 1 }} fontSize="small" />
           }}
           value={assigneeFilter}
           onChange={(e) => dispatch(setAssigneeFilter(e.target.value))}
         >
           <MenuItem value="">Tất cả người phụ trách</MenuItem>
-          {users.map((user) => (
+          {data.map((user) => (
             <MenuItem key={user._id} value={user.name}>
               {user.name}
             </MenuItem>
@@ -523,11 +520,11 @@ const OpportunitiesPage = () => {
             />
           ))}
           <DragOverlay
-            sx={{
-              transform: 'translate3d(0, 0, 0)', // Sử dụng GPU acceleration
-              willChange: 'transform',
-              pointerEvents: 'none'
-            }}
+          // sx={{
+          //   transform: 'translate3d(0, 0, 0)',
+          //   willChange: 'transform',
+          //   pointerEvents: 'none'
+          // }}
           >
             {activeLead ? <OpportunitiesCard lead={activeLead} /> : null}
           </DragOverlay>

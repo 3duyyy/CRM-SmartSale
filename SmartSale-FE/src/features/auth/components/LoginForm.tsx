@@ -23,23 +23,19 @@ const LoginForm = () => {
   const navigate = useNavigate()
 
   const onSubmit = async (data: LoginFormData) => {
-    try {
-      await toast.promise(
-        dispatch(
-          loginApi({
-            email: data.email,
-            password: data.password
-          })
-        ).unwrap(),
-        {
-          pending: 'Đang đăng nhập...',
-          success: 'Đăng nhập thành công, chào mừng bạn trở lại!'
-        }
-      )
-      navigate('/')
-    } catch (error) {
-      toast.error(error?.message)
-    }
+    await toast.promise(
+      dispatch(
+        loginApi({
+          email: data.email,
+          password: data.password
+        })
+      ).unwrap(),
+      {
+        pending: 'Đang đăng nhập...',
+        success: 'Đăng nhập thành công, chào mừng bạn trở lại!'
+      }
+    )
+    navigate('/')
   }
 
   return (
@@ -60,6 +56,7 @@ const LoginForm = () => {
         label="Email"
         fullWidth
         variant="outlined"
+        autoFocus
         {...register('email')}
         error={!!errors.email}
         helperText={errors.email?.message}
