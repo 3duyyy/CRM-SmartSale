@@ -5,12 +5,9 @@ import { FIELD_NOT_RETURN } from '../utils/constants.js'
 import { leadRepository } from '../repositories/leadRepository.js'
 import bcrypt from 'bcryptjs'
 
-const getAllUsers = async () => {
+const getAllUsers = async (filter) => {
   try {
-    const result = await userRepository.findAll(FIELD_NOT_RETURN)
-    if (!result) throw new ApiError('Chưa tồn tại người dùng nào trong danh sách!', StatusCodes.NOT_FOUND)
-
-    return { data: result }
+    return await userRepository.findAll(filter, FIELD_NOT_RETURN)
   } catch (error) {
     throw error
   }
@@ -22,7 +19,7 @@ const getUserById = async (userId) => {
 
     if (!result) throw new ApiError('Người dùng không tồn tại!', StatusCodes.NOT_FOUND)
 
-    return { data: result }
+    return result
   } catch (error) {
     throw error
   }
@@ -47,9 +44,14 @@ const createUser = async (userData) => {
 
 const updateUserById = async (userId, updateData) => {
   try {
-    const updatedData = {
-      ...updateData,
-      password: bcrypt.hashSync(updateData?.password, 10)
+    let updatedData
+    if (updateData.password) {
+      updatedData = {
+        ...updateData,
+        password: bcrypt.hashSync(updateData?.password, 10)
+      }
+    } else {
+      updatedData = updateData
     }
 
     const result = await userRepository.updateById(userId, updatedData, FIELD_NOT_RETURN)

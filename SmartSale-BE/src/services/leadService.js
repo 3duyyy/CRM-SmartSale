@@ -28,8 +28,6 @@ const createNew = async (reqBody, id) => {
 const getAllLeads = async (filter) => {
   try {
     const result = await leadRepository.findAll(filter, FIELD_NOT_RETURN)
-    if (!result) throw new ApiError('Chưa tồn tại Lead nào trong danh sách!')
-
     return { data: result }
   } catch (error) {
     throw error

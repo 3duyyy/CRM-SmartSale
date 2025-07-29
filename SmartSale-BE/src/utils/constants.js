@@ -29,3 +29,6 @@ export const PERMISSIONS = {
 
   SEND_MAIL: 'GUI_MAIL_CHO_LEAD'
 }
+
+export const STATUS_VALUES = ['Chưa xử lý', 'Đã hoàn thành', 'Thất bại']
+export const TYPE_VALUES = ['CALL', 'MAIL']

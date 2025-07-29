@@ -4,7 +4,6 @@ const create = async (data) => {
   return (await leadModel.create(data)).populate('assignedTo')
 }
 
-// Check exist lead
 const findByEmail = async (email) => {
   return await leadModel.findOne({ email })
 }
@@ -50,6 +49,10 @@ const findMaxOrderLead = async (status) => {
   return await leadModel.findOne({ status: status }).sort('-order').exec()
 }
 
+const countAll = async () => {
+  return await leadModel.countDocuments()
+}
+
 export const leadRepository = {
   create,
   findByEmail,
@@ -58,5 +61,6 @@ export const leadRepository = {
   updateById,
   deleteById,
   unassignLeadsByUserId,
-  findMaxOrderLead
+  findMaxOrderLead,
+  countAll
 }

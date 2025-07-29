@@ -20,7 +20,6 @@ export const sendLeadEmail = async ({ to, subject, html }) => {
 
     return await transporter.sendMail(mailOptions)
   } catch (error) {
-    console.log('errror: ', error)
     throw error
   }
 }

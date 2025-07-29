@@ -2,3 +2,4 @@
 import { userModel } from './userModel.js'
 import { roleModel } from './roleModel.js'
 import { permissionModel } from './permissionModel.js'
+import { followUpModel } from './followUpModel.js'

@@ -58,7 +58,6 @@ const deleteById = async (req, res, next) => {
 const sendMailToLead = async (req, res, next) => {
   try {
     const { email, name, company, value, status } = req.body
-    console.log(req.body)
 
     const templateMail =
       status === 'da_chot'
@@ -66,8 +65,6 @@ const sendMailToLead = async (req, res, next) => {
         : status === 'da_huy'
           ? leadEmailTemplates.da_huy({ name })
           : leadEmailTemplates.default({ name, company, value })
-
-    console.log('templateMail: ', templateMail)
 
     await sendLeadEmail({
       to: email,

@@ -3,7 +3,9 @@ import { userService } from '../services/userService.js'
 
 const getAllUsers = async (req, res, next) => {
   try {
-    const result = await userService.getAllUsers()
+    const { searchUser = '', role = '', page = 1, limit = 9, isPagination = true } = req.query
+
+    const result = await userService.getAllUsers({ searchUser, role, page: parseInt(page), limit: parseInt(limit), isPagination })
 
     res.status(StatusCodes.OK).json(result)
   } catch (error) {
